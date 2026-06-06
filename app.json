@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Halaqa",
+    "slug": "halaqa",
+    "orientation": "portrait",
+    "scheme": "halaqa",
+    "icon": "./assets/icon.svg",
+    "splash": {
+      "image": "./assets/splash.svg",
+      "resizeMode": "contain",
+      "backgroundColor": "#F9F6F0"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.halaqa.mobile"
+    },
+    "android": {
+      "package": "app.halaqa.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.svg",
+        "backgroundColor": "#F9F6F0"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "TODO-LAUNCH-BLOCKER-EAS-PROJECT-ID"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "halaqa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ..\\BizMatch\\node_modules\\next\\dist\\bin\\next dev --webpack",
+    "build": "node ..\\BizMatch\\node_modules\\next\\dist\\bin\\next build --webpack",
+    "start": "node ..\\BizMatch\\node_modules\\next\\dist\\bin\\next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {}
+}
