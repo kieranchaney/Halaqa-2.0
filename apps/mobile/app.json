@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Halaqa",
+    "slug": "halaqa",
+    "scheme": "halaqa",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f9f6f0"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "TODO-LAUNCH-BLOCKER-EAS-PROJECT-ID"
+      }
+    }
+  }
+}
+

@@ -1,16 +1,15 @@
 {
-  "name": "halaqa",
+  "name": "halaqa-monorepo",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "node ..\\BizMatch\\node_modules\\next\\dist\\bin\\next dev --webpack",
-    "build": "node ..\\BizMatch\\node_modules\\next\\dist\\bin\\next build --webpack",
-    "start": "node ..\\BizMatch\\node_modules\\next\\dist\\bin\\next start"
-  },
-  "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {}
+    "mobile": "npm --workspace apps/mobile run start",
+    "studio": "npm --workspace apps/studio run dev",
+    "build:studio": "npm --workspace apps/studio run build"
+  }
 }
+

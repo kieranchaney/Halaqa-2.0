@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AuthProvider, useAuth } from "./../context/AuthContext";
+import { approveRequest, createGroup, denyRequest, getJoinRequests, getUserGroups } from "./../lib/groups";
+import { getCurrentLesson, isReflectionMode } from "./../lib/lessons";
+import { getMessages, sendMessage, subscribeToMessages, unsubscribe } from "./../lib/messages";
 import {
-  currentUser,
-  groups as seedGroups,
-  initialMessages,
-  initialReflections,
-  lesson
-} from "../lib/mockData";
+  getReflections,
+  hasUserReflected,
+  submitReflection,
+  subscribeToReflections
+} from "../lib/reflections";
 import {
   exportJournalAsText,
   journalTags,
@@ -15,47 +18,11 @@ import {
   saveJournalEntries
 } from "../lib/journalStorage";
 
-const SESSION_KEY = "halaqa.auth.session";
-const GROUPS_KEY = "halaqa.groups.v1";
-const TERMS_URL = "https://halaqa.app/terms"; // TODO: LAUNCH BLOCKER - publish Terms of Service page before store submission.
-const PRIVACY_URL = "https://halaqa.app/privacy"; // TODO: LAUNCH BLOCKER - publish Privacy Policy page before store submission.
-const unlockAt = new Date(Date.now() + 1000 * 60 * 60 * 6 + 1000 * 60 * 14);
-
-// TODO: LAUNCH BLOCKER - replace this local session shim with Supabase Auth getSession/signUp/signIn/signOut in the Expo app.
-// TODO: LAUNCH BLOCKER - configure Supabase client with AsyncStorage: auth.storage, autoRefreshToken, persistSession, detectSessionInUrl false.
-// TODO: LAUNCH BLOCKER - connect password reset deep links end to end.
-// TODO: LAUNCH BLOCKER - build account deletion flow that removes auth user data, memberships, messages, and handles admin transfer/deletion.
-// TODO: LAUNCH BLOCKER - build first-time onboarding for users with no groups.
-// TODO: LAUNCH BLOCKER - capture App Store and Play Store screenshots after final native polish.
-
 function formatRemaining(ms) {
   if (ms <= 0) return "Open now";
   const hours = Math.floor(ms / 3600000);
   const minutes = Math.floor((ms % 3600000) / 60000);
   return `${hours}h ${minutes}m`;
-}
-
-function readJson(key, fallback) {
-  if (typeof window === "undefined") return fallback;
-  try {
-    return JSON.parse(window.localStorage.getItem(key) || JSON.stringify(fallback));
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(key, value) {
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  }
-}
-
-function messagesKey(groupId) {
-  return `messages_groupid_${groupId}`;
-}
-
-function reflectionsKey(groupId) {
-  return `reflections_groupid_${groupId}_current`;
 }
 
 function Button({ children, variant = "primary", className = "", ...props }) {
@@ -86,118 +53,16 @@ function SplashScreen() {
   );
 }
 
-function LandingScreen({ onMode }) {
-  return (
-    <main className="auth-shell">
-      <section className="auth-panel landing-panel">
-        <div className="app-mark" aria-hidden="true">H</div>
-        <h1>Halaqa</h1>
-        <p>Weekly lessons, sincere reflection, and a private journal for steady growth.</p>
-        <div className="auth-grid">
-          <Button onClick={() => onMode("signup")}>Sign Up</Button>
-          <Button variant="ghost" onClick={() => onMode("login")}>Log In</Button>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function AuthFieldError({ children }) {
-  return children ? <p className="field-error">{children}</p> : null;
-}
-
-function SignUpScreen({ onBack, onAuthed }) {
-  const [form, setForm] = useState({ displayName: "", email: "", password: "", confirm: "" });
-  const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  function setField(key, value) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
-
-  function submit(event) {
-    event.preventDefault();
-    const nextErrors = {};
-    if (!form.displayName.trim()) nextErrors.displayName = "Display name is required.";
-    if (!form.email.includes("@")) nextErrors.email = "Enter a valid email address.";
-    if (form.password.length < 8) nextErrors.password = "Password must be at least 8 characters.";
-    if (form.password !== form.confirm) nextErrors.confirm = "Passwords do not match.";
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
-    const session = { ...currentUser, display_name: form.displayName.trim(), email: form.email.trim() };
-    writeJson(SESSION_KEY, session);
-    onAuthed(session);
-  }
-
-  return (
-    <main className="auth-shell">
-      <form className="auth-panel" onSubmit={submit}>
-        <button className="text-link back-link pressable" type="button" onClick={onBack}>Back</button>
-        <p className="eyebrow">Create account</p>
-        <h1>Join your halaqa.</h1>
-        <input value={form.displayName} onChange={(event) => setField("displayName", event.target.value)} placeholder="Display name" />
-        <AuthFieldError>{errors.displayName}</AuthFieldError>
-        <input value={form.email} onChange={(event) => setField("email", event.target.value)} placeholder="Email address" />
-        <AuthFieldError>{errors.email}</AuthFieldError>
-        <div className="password-row">
-          <input value={form.password} onChange={(event) => setField("password", event.target.value)} type={showPassword ? "text" : "password"} placeholder="Password" />
-          <button className="pressable" type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</button>
-        </div>
-        <AuthFieldError>{errors.password}</AuthFieldError>
-        <input value={form.confirm} onChange={(event) => setField("confirm", event.target.value)} type={showPassword ? "text" : "password"} placeholder="Confirm password" />
-        <AuthFieldError>{errors.confirm}</AuthFieldError>
-        <Button>Create Account</Button>
-        <p className="auth-legal">
-          By signing up you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
-        </p>
-      </form>
-    </main>
-  );
-}
-
-function LogInScreen({ onBack, onAuthed }) {
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-
-  function submit(event) {
-    event.preventDefault();
-    if (!form.email.includes("@") || !form.password) {
-      setError("Enter your email and password.");
-      return;
-    }
-    const session = { ...currentUser, email: form.email.trim() };
-    writeJson(SESSION_KEY, session);
-    onAuthed(session);
-  }
-
-  return (
-    <main className="auth-shell">
-      <form className="auth-panel" onSubmit={submit}>
-        <button className="text-link back-link pressable" type="button" onClick={onBack}>Back</button>
-        <p className="eyebrow">Welcome back</p>
-        <h1>Log in.</h1>
-        <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Email address" />
-        <input value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" placeholder="Password" />
-        {error && <p className="field-error">{error}</p>}
-        {notice && <p className="inline-status">{notice}</p>}
-        <button className="text-link pressable" type="button" onClick={() => setNotice("Password reset email sent if this account exists.")}>
-          Forgot password?
-        </button>
-        <Button>Log In</Button>
-      </form>
-    </main>
-  );
-}
-
-function GroupDrawer({ open, groups, selectedGroupId, onClose, onSelect, onCreate }) {
+function GroupDrawer({ open, groups, selectedGroupId, loading, onClose, onSelect, onCreate }) {
   return (
     <div className={`drawer-layer ${open ? "open" : ""}`} aria-hidden={!open}>
       <button className="drawer-backdrop" onClick={onClose} aria-label="Close menu" />
       <aside className="group-drawer">
         <Button className="create-group-button" onClick={onCreate}>Create New Group</Button>
         <div className="drawer-group-list">
-          {groups.length === 0 ? (
+          {loading ? (
+            <EmptyState title="Loading your halaqas..." />
+          ) : groups.length === 0 ? (
             <EmptyState title="You are not part of any halaqa yet. Create one or ask for an invite link." />
           ) : groups.map((group) => (
             <button
@@ -220,6 +85,7 @@ function CreateGroupModal({ open, onClose, onCreate }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState("Private");
+  const [submitting, setSubmitting] = useState(false);
 
   if (!open) return null;
 
@@ -227,13 +93,18 @@ function CreateGroupModal({ open, onClose, onCreate }) {
     <div className="modal-layer">
       <form
         className="modal-panel"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
           if (!name.trim()) return;
-          onCreate({ name: name.trim(), description, is_public: visibility === "Public" });
-          setName("");
-          setDescription("");
-          setVisibility("Private");
+          setSubmitting(true);
+          try {
+            await onCreate({ name: name.trim(), description, is_public: visibility === "Public" });
+            setName("");
+            setDescription("");
+            setVisibility("Private");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
         <h2>Create New Group</h2>
@@ -244,7 +115,7 @@ function CreateGroupModal({ open, onClose, onCreate }) {
           <option>Public</option>
         </select>
         <div className="compose-row">
-          <Button>Create group</Button>
+          <Button disabled={submitting}>{submitting ? "Creating" : "Create group"}</Button>
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
         </div>
       </form>
@@ -252,9 +123,34 @@ function CreateGroupModal({ open, onClose, onCreate }) {
   );
 }
 
-function LessonCard() {
+function lessonBodyParagraphs(lesson) {
+  if (!lesson?.body_text) return [];
+  if (Array.isArray(lesson.body_text)) return lesson.body_text;
+  return String(lesson.body_text)
+    .split(/\n{2,}|<\/p>/)
+    .map((paragraph) => paragraph.replace(/<[^>]+>/g, "").trim())
+    .filter(Boolean);
+}
+
+function LessonCard({ lesson }) {
   const [expanded, setExpanded] = useState(false);
-  const prompts = lesson.reflection_prompts || [];
+  const prompts = lesson?.reflection_prompts || [];
+
+  if (!lesson) {
+    return (
+      <article className="lesson-card">
+        <div className="lesson-preview">
+          <div>
+            <div className="lesson-topline">
+              <span>Weekly lesson</span>
+              <span>Not assigned</span>
+            </div>
+            <h2>No lesson has been released for this group yet.</h2>
+          </div>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article className={`lesson-card ${expanded ? "expanded" : "collapsed"}`}>
@@ -274,9 +170,9 @@ function LessonCard() {
         <div className="lesson-scroll-shell">
           <div className="lesson-scroll-content">
             <section className="source-block">
-              <p className="arabic" dir="rtl" lang="ar">{lesson.ayatArabic}</p>
-              <p className="transliteration">{lesson.ayatTransliteration}</p>
-              <p>{lesson.ayatEnglish}</p>
+              <p className="arabic" dir="rtl" lang="ar">{lesson.ayat}</p>
+              <p className="transliteration">{lesson.ayat_transliteration}</p>
+              <p>{lesson.ayat_translation}</p>
               <strong>{lesson.ayat_reference}</strong>
             </section>
             <section className="source-block hadith">
@@ -284,7 +180,7 @@ function LessonCard() {
               <strong>{lesson.hadith_reference}</strong>
             </section>
             <div className="lesson-body">
-              {lesson.body_text.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+              {lessonBodyParagraphs(lesson).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
             </div>
             <div className="prompt-callout">
               <span>{prompts.length === 1 ? "Reflection prompt" : "Reflection prompts"}</span>
@@ -301,8 +197,9 @@ function LessonCard() {
   );
 }
 
-function ReflectionThread({ groupId, reflections, onSubmit, hasSubmitted, remainingMs, loadingOlder, onLoadOlder }) {
+function ReflectionThread({ user, groupId, lesson, reflections, onSubmit, hasSubmitted, remainingMs, loadingOlder, onRefresh }) {
   const [draft, setDraft] = useState("");
+  const [notice, setNotice] = useState("");
 
   return (
     <section className="conversation reflection">
@@ -317,29 +214,28 @@ function ReflectionThread({ groupId, reflections, onSubmit, hasSubmitted, remain
           <p key={prompt}><strong>Prompt {index + 1}:</strong> {prompt}</p>
         ))}
       </div>
-      <button className="load-older pressable" onClick={onLoadOlder} disabled={loadingOlder}>
-        {loadingOlder ? "Loading reflections..." : "Load older reflections"}
+      <button className="load-older pressable" onClick={onRefresh} disabled={loadingOlder}>
+        {loadingOlder ? "Loading reflections..." : "Refresh reflections"}
       </button>
-      <div className="system-note">
-        Assalamu Alaikum and welcome to your halaqa. Your first lesson is ready above. Start by sharing your reflection on this week's prompt - there are no wrong answers, only honest ones.
-      </div>
       {reflections.length === 0 && <EmptyState icon="✦" title="No reflections yet. Be the first to share." />}
       {reflections.map((reflection) => (
         <article className="reflection-item" key={`${groupId}-${reflection.id}`}>
           <div>
             <strong>{reflection.display_name}</strong>
-            {reflection.user_id === currentUser.id && <span>Your reflection</span>}
+            {reflection.user_id === user.id && <span>Your reflection</span>}
           </div>
           <p>{reflection.body}</p>
         </article>
       ))}
+      {notice && <p className="inline-status">{notice}</p>}
       {!hasSubmitted ? (
         <form
           className="reflection-form"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
             if (!draft.trim()) return;
-            onSubmit(draft.trim());
+            const result = await onSubmit(draft.trim());
+            if (result?.duplicate) setNotice("You've already shared your reflection this week.");
             setDraft("");
           }}
         >
@@ -357,19 +253,31 @@ function ReflectionThread({ groupId, reflections, onSubmit, hasSubmitted, remain
   );
 }
 
-function OpenChat({ messages, onSend, loadingOlder, onLoadOlder }) {
+function OpenChat({ user, groupId, messages, onSend, loadingOlder, onLoadOlder }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
     const body = draft.trim().slice(0, 1000);
-    if (!body) return;
+    if (!body || sending) return;
     setSending(true);
-    await new Promise((resolve) => setTimeout(resolve, 180));
-    onSend(body);
+    onSend({
+      id: `optimistic-${Date.now()}`,
+      group_id: groupId,
+      user_id: user.id,
+      display_name: user.display_name,
+      body,
+      created_at: new Date().toISOString(),
+      is_system: false,
+      optimistic: true
+    });
     setDraft("");
-    setSending(false);
+    try {
+      await sendMessage(groupId, user.id, body);
+    } finally {
+      setTimeout(() => setSending(false), 1000);
+    }
   }
 
   return (
@@ -385,7 +293,7 @@ function OpenChat({ messages, onSend, loadingOlder, onLoadOlder }) {
             <p className="system-note" key={message.id}>{message.body}</p>
           ) : (
             <article className="message" key={message.id}>
-              <div className="avatar">{message.display_name.slice(0, 1)}</div>
+              <div className="avatar">{message.display_name?.slice(0, 1) || "M"}</div>
               <div>
                 <header>
                   <strong>{message.display_name}</strong>
@@ -405,108 +313,157 @@ function OpenChat({ messages, onSend, loadingOlder, onLoadOlder }) {
   );
 }
 
-function AdminPanel({ role }) {
-  if (role === "member") return null;
+function AdminPanel({ group }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const canManage = group?.role === "admin" || group?.role === "co-admin";
+
+  useEffect(() => {
+    if (!canManage || !group?.id) return;
+    setLoading(true);
+    getJoinRequests(group.id)
+      .then(setRequests)
+      .catch(() => setRequests([]))
+      .finally(() => setLoading(false));
+  }, [canManage, group?.id]);
+
+  if (!canManage) return null;
+
+  async function decide(requestId, approved) {
+    if (approved) await approveRequest(requestId);
+    else await denyRequest(requestId);
+    setRequests((items) => items.filter((item) => item.id !== requestId));
+  }
+
   return (
     <aside className="admin-panel">
       <header>
-        <span>{role === "admin" ? "Admin panel" : "Co-admin panel"}</span>
-        <strong>3 pending requests</strong>
+        <span>{group.role === "admin" ? "Admin panel" : "Co-admin panel"}</span>
+        <strong>{loading ? "Loading requests" : `${requests.length} pending requests`}</strong>
       </header>
       <div className="admin-actions">
-        <Button variant="ghost">Review requests</Button>
-        <Button variant="ghost">Post custom lesson</Button>
-        {role === "admin" && <Button variant="ghost">Group settings</Button>}
+        {requests.length === 0 ? (
+          <Button variant="ghost" disabled>No pending requests</Button>
+        ) : requests.map((request) => (
+          <div className="compose-row" key={request.id}>
+            <Button variant="ghost" onClick={() => decide(request.id, true)}>
+              Approve {request.users?.display_name || "member"}
+            </Button>
+            <Button variant="ghost" onClick={() => decide(request.id, false)}>Deny</Button>
+          </div>
+        ))}
       </div>
     </aside>
   );
 }
 
 function HalaqaTab({ user, onLogout }) {
-  const [allGroups, setAllGroups] = useState(seedGroups.map((group, index) => ({ ...group, unreadCount: index === 0 ? 2 : 0 })));
-  const [selectedGroupId, setSelectedGroupId] = useState(seedGroups[0]?.id || "");
+  const [groups, setGroups] = useState([]);
+  const [selectedGroupId, setSelectedGroupId] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [lesson, setLesson] = useState(null);
   const [reflections, setReflections] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [remainingMs, setRemainingMs] = useState(unlockAt.getTime() - Date.now());
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [remainingMs, setRemainingMs] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [toast, setToast] = useState("");
-  const selectedGroup = allGroups.find((group) => group.id === selectedGroupId);
-  const hasSubmitted = reflections.some((reflection) => reflection.user_id === currentUser.id);
-  const isReflectionMode = remainingMs > 0;
+  const selectedGroup = groups.find((group) => group.id === selectedGroupId);
+  const reflectionMode = lesson ? isReflectionMode(lesson.reflection_unlocked_at) : false;
 
-  useEffect(() => {
-    const stored = readJson(GROUPS_KEY, null);
-    if (stored) {
-      setAllGroups(stored);
-      setSelectedGroupId(stored[0]?.id || "");
+  async function loadGroups() {
+    setLoading(true);
+    try {
+      const nextGroups = await getUserGroups(user.id);
+      setGroups(nextGroups);
+      setSelectedGroupId((current) => current || nextGroups[0]?.id || "");
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    writeJson(GROUPS_KEY, allGroups);
-  }, [allGroups]);
+    loadGroups();
+  }, [user.id]);
 
   useEffect(() => {
-    const timer = setInterval(() => setRemainingMs(unlockAt.getTime() - Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!drawerOpen) return;
+    loadGroups();
+  }, [drawerOpen]);
 
   useEffect(() => {
     if (!selectedGroupId) return;
-    setMessages(readJson(messagesKey(selectedGroupId), []));
-    setReflections(readJson(reflectionsKey(selectedGroupId), []));
-    const refresh = setTimeout(() => {
-      const mergedMessages = readJson(messagesKey(selectedGroupId), initialMessages).slice(-100);
-      const mergedReflections = readJson(reflectionsKey(selectedGroupId), initialReflections).slice(-100);
-      setMessages(mergedMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
-      setReflections(mergedReflections.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
-      writeJson(messagesKey(selectedGroupId), mergedMessages);
-      writeJson(reflectionsKey(selectedGroupId), mergedReflections);
-    }, 250);
-    const realtime = setInterval(() => {}, 30000);
+    let active = true;
+    setLesson(null);
+    setReflections([]);
+    setMessages([]);
+
+    async function loadLesson() {
+      const currentLesson = await getCurrentLesson(selectedGroupId);
+      if (!active) return;
+      setLesson(currentLesson);
+      if (!currentLesson) return;
+
+      setRemainingMs(new Date(currentLesson.reflection_unlocked_at).getTime() - Date.now());
+      const [nextReflections, reflected, nextMessages] = await Promise.all([
+        getReflections(currentLesson.groupLessonId),
+        hasUserReflected(currentLesson.groupLessonId, user.id),
+        getMessages(selectedGroupId, 100)
+      ]);
+      if (!active) return;
+      setReflections(nextReflections);
+      setHasSubmitted(reflected);
+      setMessages(nextMessages);
+    }
+
+    loadLesson().catch((error) => setToast(error.message || "Unable to load this halaqa."));
     return () => {
-      clearTimeout(refresh);
-      clearInterval(realtime);
+      active = false;
+    };
+  }, [selectedGroupId, user.id]);
+
+  useEffect(() => {
+    if (!lesson?.reflection_unlocked_at) return;
+    const timer = setInterval(() => {
+      setRemainingMs(new Date(lesson.reflection_unlocked_at).getTime() - Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lesson?.reflection_unlocked_at]);
+
+  useEffect(() => {
+    if (!lesson?.groupLessonId) return;
+    const subscription = subscribeToReflections(lesson.groupLessonId, async () => {
+      setReflections(await getReflections(lesson.groupLessonId));
+      setHasSubmitted(await hasUserReflected(lesson.groupLessonId, user.id));
+    });
+    return () => {
+      unsubscribe(subscription);
+    };
+  }, [lesson?.groupLessonId, user.id]);
+
+  useEffect(() => {
+    if (!selectedGroupId) return;
+    const subscription = subscribeToMessages(selectedGroupId, async () => {
+      setMessages(await getMessages(selectedGroupId, 100));
+    });
+    return () => {
+      unsubscribe(subscription);
     };
   }, [selectedGroupId]);
-
-  useEffect(() => {
-    if (selectedGroupId) writeJson(messagesKey(selectedGroupId), messages);
-  }, [messages, selectedGroupId]);
-
-  useEffect(() => {
-    if (selectedGroupId) writeJson(reflectionsKey(selectedGroupId), reflections);
-  }, [reflections, selectedGroupId]);
 
   function showToast(message) {
     setToast(message);
     setTimeout(() => setToast(""), 2600);
   }
 
-  function loadOlder(kind) {
-    setLoadingOlder(true);
-    setTimeout(() => {
-      const older = {
-        id: `${kind}-older-${Date.now()}`,
-        user_id: "user-older",
-        display_name: "Older member",
-        body: kind === "message" ? "An earlier cached message from this halaqa." : "An earlier reflection from this cycle.",
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        is_system: false
-      };
-      if (kind === "message") setMessages((items) => [older, ...items]);
-      if (kind === "reflection") setReflections((items) => [older, ...items]);
-      setLoadingOlder(false);
-    }, 500);
-  }
-
   return (
     <main className="app-screen safe-screen">
       <GroupDrawer
         open={drawerOpen}
-        groups={allGroups}
+        groups={groups}
+        loading={loading}
         selectedGroupId={selectedGroupId}
         onClose={() => setDrawerOpen(false)}
         onCreate={() => {
@@ -515,25 +472,15 @@ function HalaqaTab({ user, onLogout }) {
         }}
         onSelect={(groupId) => {
           setSelectedGroupId(groupId);
-          setAllGroups((items) => items.map((group) => group.id === groupId ? { ...group, unreadCount: 0 } : group));
           setDrawerOpen(false);
         }}
       />
       <CreateGroupModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreate={(group) => {
-          const created = {
-            id: `group-${Date.now()}`,
-            name: group.name,
-            description: group.description,
-            role: "admin",
-            memberCount: 1,
-            is_public: group.is_public,
-            invite_code: crypto.randomUUID?.() || `${Date.now()}`,
-            unreadCount: 0
-          };
-          setAllGroups((items) => [created, ...items]);
+        onCreate={async (group) => {
+          const created = await createGroup(group.name, group.description, group.is_public, user.id);
+          await loadGroups();
           setSelectedGroupId(created.id);
           setCreateOpen(false);
           showToast("Group created.");
@@ -553,8 +500,8 @@ function HalaqaTab({ user, onLogout }) {
       {!selectedGroup ? (
         <EmptyState
           icon="◎"
-          title="You are not part of any halaqa yet. Create one or ask for an invite link."
-          action={<Button onClick={() => setCreateOpen(true)}>Create New Group</Button>}
+          title={loading ? "Loading your halaqas..." : "You are not part of any halaqa yet. Create one or ask for an invite link."}
+          action={!loading && <Button onClick={() => setCreateOpen(true)}>Create New Group</Button>}
         />
       ) : (
         <>
@@ -563,47 +510,49 @@ function HalaqaTab({ user, onLogout }) {
             <span>{selectedGroup.is_public ? "Public" : "Private"}</span>
             <span>{selectedGroup.role}</span>
           </section>
-          <AdminPanel role={selectedGroup.role} />
-          <LessonCard />
-          {isReflectionMode ? (
+          <AdminPanel group={selectedGroup} />
+          <LessonCard lesson={lesson} />
+          {!lesson ? (
+            <EmptyState title="This group is ready. A weekly lesson will appear here once it is assigned." />
+          ) : reflectionMode ? (
             <ReflectionThread
+              user={user}
               groupId={selectedGroup.id}
+              lesson={lesson}
               reflections={reflections}
               hasSubmitted={hasSubmitted}
               remainingMs={remainingMs}
               loadingOlder={loadingOlder}
-              onLoadOlder={() => loadOlder("reflection")}
-              onSubmit={(body) => {
-                setReflections((items) => [
-                  ...items,
-                  {
-                    id: `reflection-${Date.now()}`,
-                    user_id: currentUser.id,
-                    display_name: currentUser.display_name,
-                    body,
-                    created_at: new Date().toISOString()
-                  }
-                ]);
-                showToast("Reflection shared.");
+              onRefresh={async () => {
+                setLoadingOlder(true);
+                setReflections(await getReflections(lesson.groupLessonId));
+                setLoadingOlder(false);
+              }}
+              onSubmit={async (body) => {
+                const result = await submitReflection(lesson.groupLessonId, selectedGroup.id, user.id, body);
+                if (result.reflection) {
+                  setReflections((items) => [...items, result.reflection]);
+                  setHasSubmitted(true);
+                  showToast("Reflection shared.");
+                }
+                return result;
               }}
             />
           ) : (
             <OpenChat
+              user={user}
+              groupId={selectedGroup.id}
               messages={messages}
               loadingOlder={loadingOlder}
-              onLoadOlder={() => loadOlder("message")}
-              onSend={(body) => {
-                setMessages((items) => [
-                  ...items,
-                  {
-                    id: `message-${Date.now()}`,
-                    user_id: currentUser.id,
-                    display_name: currentUser.display_name,
-                    body,
-                    created_at: new Date().toISOString(),
-                    is_system: false
-                  }
-                ]);
+              onLoadOlder={async () => {
+                setLoadingOlder(true);
+                const cursor = messages[0]?.created_at;
+                const older = await getMessages(selectedGroup.id, 50, cursor);
+                setMessages((items) => [...older, ...items]);
+                setLoadingOlder(false);
+              }}
+              onSend={(message) => {
+                setMessages((items) => [...items, message]);
               }}
             />
           )}
@@ -705,43 +654,36 @@ function JournalTab() {
   );
 }
 
-export default function Home() {
-  const [booting, setBooting] = useState(true);
-  const [authMode, setAuthMode] = useState("landing");
-  const [session, setSession] = useState(null);
+function HomeContent() {
+  const { user, session, loading, signOut } = useAuth();
   const [tab, setTab] = useState("halaqa");
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSession(readJson(SESSION_KEY, null));
-      setBooting(false);
-    }, 260);
-    return () => clearTimeout(timer);
-  }, []);
-
-  function logout() {
-    window.localStorage.removeItem(SESSION_KEY);
-    setSession(null);
-    setAuthMode("landing");
+  async function logout() {
+    await signOut();
+    window.location.replace("/login");
   }
 
-  if (booting) return <SplashScreen />;
-  if (!session && authMode === "landing") return <LandingScreen onMode={setAuthMode} />;
-  if (!session && authMode === "signup") return <SignUpScreen onBack={() => setAuthMode("landing")} onAuthed={setSession} />;
-  if (!session && authMode === "login") return <LogInScreen onBack={() => setAuthMode("landing")} onAuthed={setSession} />;
+  if (loading || !session || !user) return <SplashScreen />;
 
   return (
     <div className="phone-shell">
-      {tab === "halaqa" ? <HalaqaTab user={session} onLogout={logout} /> : <JournalTab />}
+      {tab === "halaqa" ? <HalaqaTab user={user} onLogout={logout} /> : <JournalTab />}
       <nav className="bottom-tabs safe-bottom">
         <button className={`pressable ${tab === "halaqa" ? "active" : ""}`} onClick={() => setTab("halaqa")}>
           <span>Halaqa</span>
-          <i>2</i>
         </button>
         <button className={`pressable ${tab === "journal" ? "active" : ""}`} onClick={() => setTab("journal")}>
           <span>Journal</span>
         </button>
       </nav>
     </div>
+  );
+}
+
+export default function HomeClient() {
+  return (
+    <AuthProvider>
+      <HomeContent />
+    </AuthProvider>
   );
 }

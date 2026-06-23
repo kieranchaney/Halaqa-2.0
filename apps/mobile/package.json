@@ -1,0 +1,26 @@
+{
+  "name": "halaqa-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "latest",
+    "@supabase/supabase-js": "^2.108.1",
+    "expo": "latest",
+    "expo-linking": "latest",
+    "expo-router": "latest",
+    "react": "latest",
+    "react-native": "latest",
+    "react-native-url-polyfill": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}
+

@@ -2,3 +2,9 @@
 node_modules
 server.out.log
 server.err.log
+.env.local
+apps/*/.next
+apps/*/node_modules
+apps/*/.expo
+apps/*/.env.local
+apps/mobile/.env
