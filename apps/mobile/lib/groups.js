@@ -86,3 +86,38 @@ export async function joinGroupByCode(inviteCode) {
   return group;
 }
 
+export async function getLatestGroupLesson(groupId) {
+  const { data, error } = await supabase
+    .from("group_lessons")
+    .select(
+      "id, group_id, lesson_id, scheduled_for, sent_at, reflection_unlocked_at, lessons(title, theme, body_text, ayat, ayat_transliteration, ayat_translation, ayat_reference, hadith, hadith_reference, reflection_prompts)"
+    )
+    .eq("group_id", groupId)
+    .not("sent_at", "is", null)
+    .order("sent_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function getReflectionResponse(groupLessonId, userId) {
+  const { data, error } = await supabase
+    .from("reflection_responses")
+    .select("*")
+    .eq("group_lesson_id", groupLessonId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function submitReflection(groupLessonId, groupId, userId, body) {
+  const { data, error } = await supabase
+    .from("reflection_responses")
+    .insert({ group_lesson_id: groupLessonId, group_id: groupId, user_id: userId, body })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}

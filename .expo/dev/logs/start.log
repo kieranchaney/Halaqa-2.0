@@ -1,0 +1,19 @@
+{"_e":"root:init","_t":1782675950998,"format":"v0-jsonl","version":"56.1.15"}
+{"_e":"env:mode","_t":1782675950999,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782675951007,"mode":"development","files":["../..\\..\\.env.local"],"env":{"NEXT_PUBLIC_SUPABASE_ANON_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1a3N3dmtjZnJjeXN4cW53Y2N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNjk1MzYsImV4cCI6MjA5Njk0NTUzNn0.lEsSPs6C_kYmuEFCTKELT7v9AVgyaEqOXDGD-s3Yukk","NEXT_PUBLIC_SUPABASE_URL":"https://zukswvkcfrcysxqnwccz.supabase.co"}}
+{"_e":"devserver:start","_t":1782675951467,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782675952138,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782675963419,"atlas":false,"workers":10,"host":"::","port":8081}
+{"_e":"root:init","_t":1782675971124,"format":"v0-jsonl","version":"56.1.15"}
+{"_e":"env:mode","_t":1782675971125,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782675971129,"mode":"development","files":["../..\\..\\.env.local"],"env":{"NEXT_PUBLIC_SUPABASE_ANON_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1a3N3dmtjZnJjeXN4cW53Y2N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNjk1MzYsImV4cCI6MjA5Njk0NTUzNn0.lEsSPs6C_kYmuEFCTKELT7v9AVgyaEqOXDGD-s3Yukk","NEXT_PUBLIC_SUPABASE_URL":"https://zukswvkcfrcysxqnwccz.supabase.co"}}
+{"_e":"devserver:start","_t":1782675971459,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782675971969,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782675981531,"atlas":false,"workers":10,"host":"::","port":8081}
+{"_e":"metro:client_log","_t":1782675988513,"level":"error","data":["Project is incompatible with this version of Expo Go\n\nThe project you requested requires a newer version of Expo Go.\n\nHow to fix this error:\n\nDownload the latest version of Expo Go from the App Store."]}
+{"_e":"root:init","_t":1783019862380,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1783019862381,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1783019862388,"mode":"development","files":["../..\\..\\.env.local"],"env":{"NEXT_PUBLIC_SUPABASE_ANON_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1a3N3dmtjZnJjeXN4cW53Y2N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNjk1MzYsImV4cCI6MjA5Njk0NTUzNn0.lEsSPs6C_kYmuEFCTKELT7v9AVgyaEqOXDGD-s3Yukk","NEXT_PUBLIC_SUPABASE_URL":"https://zukswvkcfrcysxqnwccz.supabase.co"}}
+{"_e":"devserver:start","_t":1783019862788,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1783019863497,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1783019870605,"atlas":false,"workers":10,"host":"::","port":8081}

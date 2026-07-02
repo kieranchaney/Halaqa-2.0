@@ -12,6 +12,15 @@ function Button({ children, variant = "primary", ...props }) {
   );
 }
 
+function friendlyLoginError(error) {
+  const message = error?.message || "Unable to sign in.";
+  const lower = message.toLowerCase();
+  if (lower.includes("email not confirmed")) return "Please confirm your email before logging in.";
+  if (lower.includes("invalid login credentials")) return "The email or password does not match an existing confirmed account.";
+  if (lower.includes("rate limit") || lower.includes("too many")) return "Too many login attempts. Please wait a little while before trying again.";
+  return message;
+}
+
 function LoginContent() {
   const { session, signIn } = useAuth();
   const [email, setEmail] = useState("");
@@ -36,7 +45,7 @@ function LoginContent() {
       await signIn(email.trim(), password);
       window.location.replace("/");
     } catch (err) {
-      setError(err.message || "Unable to sign in.");
+      setError(friendlyLoginError(err));
     } finally {
       setSubmitting(false);
     }
@@ -67,4 +76,3 @@ export default function LoginClient() {
     </AuthProvider>
   );
 }
-

@@ -7,20 +7,35 @@ const AuthContext = createContext(null);
 
 async function loadProfile(session) {
   if (!session?.user) return null;
+  const fallbackName =
+    session.user.user_metadata?.display_name ||
+    session.user.email?.split("@")[0] ||
+    "Member";
+
   const { data } = await supabase
     .from("users")
     .select("*")
     .eq("id", session.user.id)
     .maybeSingle();
 
+  let profile = data;
+  if (!profile) {
+    const { data: created } = await supabase
+      .from("users")
+      .upsert({
+        id: session.user.id,
+        display_name: fallbackName,
+        avatar_url: session.user.user_metadata?.avatar_url || null
+      })
+      .select("*")
+      .maybeSingle();
+    profile = created;
+  }
+
   return {
     ...session.user,
-    display_name:
-      data?.display_name ||
-      session.user.user_metadata?.display_name ||
-      session.user.email?.split("@")[0] ||
-      "Member",
-    profile: data
+    display_name: profile?.display_name || fallbackName,
+    profile
   };
 }
 
@@ -32,7 +47,7 @@ async function signUp(email, password, displayName) {
   });
   if (error) throw error;
 
-  if (data.user) {
+  if (data.user && data.session) {
     const { error: profileError } = await supabase
       .from("users")
       .upsert({
@@ -112,4 +127,3 @@ export function useAuth() {
   if (!context) throw new Error("useAuth must be used inside AuthProvider");
   return context;
 }
-

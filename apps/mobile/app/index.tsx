@@ -14,9 +14,10 @@ export default function IndexScreen() {
       return;
     }
 
+    const userId = user.id;
     async function routeUser() {
-      const groups = await getUserGroups(user.id);
-      router.replace(groups.length === 0 ? "/(app)/onboarding" : "/(app)/home");
+      const groups = await getUserGroups(userId);
+      router.replace(groups.length === 0 ? "/(app)/halaqa" : "/(app)/halaqa");
     }
 
     routeUser();
@@ -42,4 +43,3 @@ const styles = StyleSheet.create({
     color: "#6f776d"
   }
 });
-

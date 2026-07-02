@@ -13,7 +13,8 @@
       "backgroundColor": "#f9f6f0"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {
@@ -22,4 +23,3 @@
     }
   }
 }
-

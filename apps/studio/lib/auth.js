@@ -10,7 +10,11 @@ export async function signUp(email, password, displayName) {
   });
   if (error) throw error;
 
-  if (data.user) {
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error("An account already exists for this email. Please log in instead, or reset your password if you do not remember it.");
+  }
+
+  if (data.user && data.session) {
     const { error: profileError } = await supabase
       .from("users")
       .upsert({
@@ -44,4 +48,3 @@ export async function getSession() {
 export function onAuthStateChange(callback) {
   return supabase.auth.onAuthStateChange(callback);
 }
-
