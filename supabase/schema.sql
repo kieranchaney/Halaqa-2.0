@@ -128,12 +128,33 @@ create table public.messages (
   constraint system_message_user check ((is_system = true and user_id is null) or (is_system = false and user_id is not null))
 );
 
+create table public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid not null references public.users(id) on delete cascade,
+  reported_user_id uuid not null references public.users(id) on delete cascade,
+  content_id uuid references public.messages(id) on delete set null,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+
+create table public.blocked_users (
+  id uuid primary key default gen_random_uuid(),
+  blocker_id uuid not null references public.users(id) on delete cascade,
+  blocked_user_id uuid not null references public.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (blocker_id, blocked_user_id),
+  constraint no_self_block check (blocker_id <> blocked_user_id)
+);
+
 create index on public.group_members (user_id, group_id);
 create index on public.join_requests (group_id, status);
 create index on public.group_lessons (group_id, scheduled_for desc);
 create index on public.messages (group_id, created_at desc);
 create index on public.reflection_responses (group_lesson_id, created_at);
 create index on public.scheduled_lessons (scheduled_for, status);
+create index on public.reports (reporter_id, created_at desc);
+create index on public.reports (reported_user_id, created_at desc);
+create index on public.blocked_users (blocker_id, blocked_user_id);
 
 alter table public.users enable row level security;
 alter table public.studio_users enable row level security;
@@ -146,6 +167,8 @@ alter table public.reflection_responses enable row level security;
 alter table public.messages enable row level security;
 alter table public.scheduled_lessons enable row level security;
 alter table public.platform_settings enable row level security;
+alter table public.reports enable row level security;
+alter table public.blocked_users enable row level security;
 
 create or replace function public.is_group_member(check_group_id uuid, check_user_id uuid default auth.uid())
 returns boolean
@@ -355,7 +378,18 @@ with check (
 
 create policy "Members can read group messages"
 on public.messages for select
-using (public.is_group_member(group_id));
+using (
+  public.is_group_member(group_id)
+  and (
+    is_system = true
+    or not exists (
+      select 1
+      from public.blocked_users bu
+      where bu.blocker_id = auth.uid()
+        and bu.blocked_user_id = messages.user_id
+    )
+  )
+);
 
 create policy "Members can write open chat only after unlock"
 on public.messages for insert
@@ -376,6 +410,32 @@ create policy "Studio owners manage platform settings"
 on public.platform_settings for all
 using (public.is_studio_owner())
 with check (public.is_studio_owner());
+
+create policy "Users can create reports"
+on public.reports for insert
+with check (
+  reporter_id = auth.uid()
+  and reported_user_id <> auth.uid()
+);
+
+create policy "Studio owners can read reports"
+on public.reports for select
+using (public.is_studio_owner());
+
+create policy "Users can read own blocked users"
+on public.blocked_users for select
+using (blocker_id = auth.uid());
+
+create policy "Users can block other users"
+on public.blocked_users for insert
+with check (
+  blocker_id = auth.uid()
+  and blocked_user_id <> auth.uid()
+);
+
+create policy "Users can unblock users"
+on public.blocked_users for delete
+using (blocker_id = auth.uid());
 
 create or replace function public.create_group(group_name text, group_description text, group_is_public boolean)
 returns uuid

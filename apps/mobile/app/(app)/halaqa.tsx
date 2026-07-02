@@ -21,7 +21,8 @@ import {
   joinGroupByCode,
   submitReflection
 } from "../../lib/groups";
-import { getMessages, sendMessage, subscribeToMessages, unsubscribe } from "../../lib/messages";
+import { getVisibleMessages, sendMessage, subscribeToMessages, unsubscribe } from "../../lib/messages";
+import { blockUser, getBlockedUserIds, reportContent } from "../../lib/moderation";
 
 const colors = {
   background: "#FAF8F5",
@@ -57,6 +58,7 @@ export default function HalaqaScreen() {
   const [reflectionBody, setReflectionBody] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [now, setNow] = useState(Date.now());
   const [modal, setModal] = useState<"create" | "join" | null>(null);
   const [groupInput, setGroupInput] = useState("");
@@ -79,6 +81,8 @@ export default function HalaqaScreen() {
   async function loadGroupData(group: any) {
     if (!user?.id || !group?.id) return;
     const latest = await getLatestGroupLesson(group.id);
+    const hiddenUserIds = await getBlockedUserIds(user.id);
+    setBlockedUserIds(hiddenUserIds);
     setGroupLesson(latest);
     setMessages([]);
     setReflection(null);
@@ -88,7 +92,7 @@ export default function HalaqaScreen() {
       setReflection(existing);
     }
 
-    const nextMessages = await getMessages(group.id);
+    const nextMessages = await getVisibleMessages(group.id, hiddenUserIds);
     setMessages(nextMessages);
   }
 
@@ -141,14 +145,45 @@ export default function HalaqaScreen() {
   useEffect(() => {
     if (!activeGroup?.id || !chatUnlocked) return;
     const subscription = subscribeToMessages(activeGroup.id, async () => {
-      const nextMessages = await getMessages(activeGroup.id);
+      const nextMessages = await getVisibleMessages(activeGroup.id, blockedUserIds);
       setMessages(nextMessages);
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     });
     return () => {
       unsubscribe(subscription);
     };
-  }, [activeGroup?.id, chatUnlocked]);
+  }, [activeGroup?.id, chatUnlocked, blockedUserIds]);
+
+  async function reportMessage(message: any) {
+    if (!user?.id || !message?.user_id || message.user_id === user.id) return;
+    try {
+      await reportContent(user.id, message.user_id, message.id, "Reported from group message");
+      Alert.alert("Thank you, we will review this report");
+    } catch (error: any) {
+      Alert.alert("Unable to report message", error.message || "Please try again.");
+    }
+  }
+
+  async function blockMember(memberId: string) {
+    if (!user?.id || !memberId || memberId === user.id) return;
+    try {
+      await blockUser(user.id, memberId);
+      setBlockedUserIds((current) => Array.from(new Set([...current, memberId])));
+      setMessages((current) => current.filter((message) => message.is_system || message.user_id !== memberId));
+      Alert.alert("User blocked");
+    } catch (error: any) {
+      Alert.alert("Unable to block user", error.message || "Please try again.");
+    }
+  }
+
+  function showMessageActions(message: any) {
+    if (!message?.user_id || message.user_id === user?.id) return;
+    Alert.alert(message.display_name || "Member", "Choose an action", [
+      { text: "Report", onPress: () => reportMessage(message) },
+      { text: "Block User", style: "destructive", onPress: () => blockMember(message.user_id) },
+      { text: "Cancel", style: "cancel" }
+    ]);
+  }
 
   async function submitGroupAction() {
     if (!user?.id || !groupInput.trim() || !modal) return;
@@ -313,11 +348,21 @@ export default function HalaqaScreen() {
                   }
                   return (
                     <View key={message.id} style={[styles.messageRow, mine && styles.messageRowMine]}>
-                      <View style={[styles.messageBubble, mine && styles.messageBubbleMine]}>
-                        <Text style={[styles.sender, mine && styles.senderMine]}>{message.display_name}</Text>
+                      <Pressable
+                        style={[styles.messageBubble, mine && styles.messageBubbleMine]}
+                        onLongPress={() => showMessageActions(message)}
+                      >
+                        <View style={styles.senderRow}>
+                          <Text style={[styles.sender, mine && styles.senderMine]}>{message.display_name}</Text>
+                          {!mine && (
+                            <Pressable hitSlop={8} onPress={() => blockMember(message.user_id)}>
+                              <Text style={styles.blockText}>Block</Text>
+                            </Pressable>
+                          )}
+                        </View>
                         <Text style={[styles.messageText, mine && styles.messageTextMine]}>{message.body}</Text>
                         <Text style={[styles.timestamp, mine && styles.timestampMine]}>{formatTime(message.created_at)}</Text>
-                      </View>
+                      </Pressable>
                     </View>
                   );
                 })}
@@ -412,8 +457,10 @@ const styles = StyleSheet.create({
   messageRowMine: { alignItems: "flex-end" },
   messageBubble: { maxWidth: "82%", borderRadius: 8, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, padding: 10 },
   messageBubbleMine: { backgroundColor: colors.green, borderColor: colors.green },
+  senderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 4 },
   sender: { color: colors.green, fontSize: 12, fontWeight: "800", marginBottom: 4 },
   senderMine: { color: "#E8D59A" },
+  blockText: { color: "#7D1F1F", fontSize: 12, fontWeight: "800" },
   messageText: { color: colors.text, lineHeight: 20 },
   messageTextMine: { color: "#FFFFFF" },
   timestamp: { color: colors.muted, fontSize: 11, marginTop: 6 },

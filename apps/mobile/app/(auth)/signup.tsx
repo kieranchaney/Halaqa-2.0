@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 
@@ -26,6 +26,14 @@ export default function SignupScreen() {
     }
   }
 
+  function openTermsOfService() {
+    Linking.openURL("https://sites.google.com/view/halaqatermsofservice/home");
+  }
+
+  function openPrivacyPolicy() {
+    Linking.openURL("https://sites.google.com/view/halaqa-privacy-policy/privacy-policy");
+  }
+
   return (
     <View style={styles.screen}>
       <Text style={styles.logo}>H</Text>
@@ -37,6 +45,16 @@ export default function SignupScreen() {
       <Pressable style={styles.button} onPress={submit} disabled={submitting}>
         <Text style={styles.buttonText}>{submitting ? "Creating..." : "Create Account"}</Text>
       </Pressable>
+      <Text style={styles.agreementText}>
+        By signing up, you agree to our{" "}
+        <Text style={styles.agreementLink} onPress={openTermsOfService}>
+          Terms of Service
+        </Text>{" "}
+        and{" "}
+        <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
+          Privacy Policy
+        </Text>
+      </Text>
       <Pressable onPress={() => router.push("/(auth)/login")}>
         <Text style={styles.link}>Log in instead</Text>
       </Pressable>
@@ -51,6 +69,7 @@ const styles = StyleSheet.create({
   input: { minHeight: 48, borderWidth: 1, borderColor: "#ded5c5", borderRadius: 8, backgroundColor: "#fffdfa", paddingHorizontal: 14, marginBottom: 12 },
   button: { minHeight: 48, borderRadius: 8, backgroundColor: "#1b4332", alignItems: "center", justifyContent: "center", marginTop: 6 },
   buttonText: { color: "white", fontWeight: "800" },
+  agreementText: { color: "#4d5d53", fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 14 },
+  agreementLink: { color: "#1b4332", fontWeight: "800", textDecorationLine: "underline" },
   link: { color: "#1b4332", fontWeight: "800", textAlign: "center", marginTop: 18 }
 });
-

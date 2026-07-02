@@ -22,6 +22,12 @@ export async function getMessages(groupId, limit = 100, cursor) {
   return (data || []).map(normalizeMessage).reverse();
 }
 
+export async function getVisibleMessages(groupId, blockedUserIds = [], limit = 100, cursor) {
+  const messages = await getMessages(groupId, limit, cursor);
+  if (!blockedUserIds.length) return messages;
+  return messages.filter((message) => message.is_system || !blockedUserIds.includes(message.user_id));
+}
+
 export async function sendMessage(groupId, userId, body) {
   const { data, error } = await supabase
     .from("messages")
@@ -46,4 +52,3 @@ export function subscribeToMessages(groupId, callback) {
 export function unsubscribe(subscription) {
   return supabase.removeChannel(subscription);
 }
-

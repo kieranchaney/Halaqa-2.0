@@ -15,13 +15,13 @@ Deno.serve(async (req) => {
 
   const userId = user.id;
 
-  const { data: adminMemberships } = await supabase
-    .from("group_members")
-    .select("group_id")
-    .eq("user_id", userId)
-    .eq("role", "admin");
+  const { data: ownedGroups } = await supabase.from("groups").select("id").eq("created_by", userId);
+  const { data: adminMemberships } = await supabase.from("group_members").select("group_id").eq("user_id", userId).eq("role", "admin");
+  const groupIdsToTransfer = Array.from(
+    new Set([...(ownedGroups || []).map(({ id }) => id), ...(adminMemberships || []).map(({ group_id }) => group_id)])
+  );
 
-  for (const { group_id } of adminMemberships || []) {
+  for (const group_id of groupIdsToTransfer) {
     const { data: otherMembers } = await supabase
       .from("group_members")
       .select("user_id, joined_at")
@@ -32,6 +32,12 @@ Deno.serve(async (req) => {
 
     if (otherMembers && otherMembers.length > 0) {
       await supabase
+        .from("groups")
+        .update({ created_by: otherMembers[0].user_id })
+        .eq("id", group_id)
+        .eq("created_by", userId);
+
+      await supabase
         .from("group_members")
         .update({ role: "admin" })
         .eq("group_id", group_id)
@@ -41,9 +47,16 @@ Deno.serve(async (req) => {
     }
   }
 
+  await supabase.from("reports").delete().or(`reporter_id.eq.${userId},reported_user_id.eq.${userId}`);
+  await supabase.from("blocked_users").delete().or(`blocker_id.eq.${userId},blocked_user_id.eq.${userId}`);
+  await supabase.from("messages").delete().eq("user_id", userId);
+  await supabase.from("reflection_responses").delete().eq("user_id", userId);
+  await supabase.from("join_requests").delete().eq("user_id", userId);
+  await supabase.from("group_members").delete().eq("user_id", userId);
+  await supabase.from("users").delete().eq("id", userId);
+
   const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
   if (deleteError) return Response.json({ error: deleteError.message }, { status: 500 });
 
   return Response.json({ success: true });
 });
-
