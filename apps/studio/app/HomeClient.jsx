@@ -658,6 +658,12 @@ function HomeContent() {
   const { user, session, loading, signOut } = useAuth();
   const [tab, setTab] = useState("halaqa");
 
+  useEffect(() => {
+    if (!loading && !session) {
+      window.location.replace("/login");
+    }
+  }, [loading, session]);
+
   async function logout() {
     await signOut();
     window.location.replace("/login");

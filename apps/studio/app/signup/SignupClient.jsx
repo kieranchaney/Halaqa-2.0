@@ -16,11 +16,26 @@ function AuthFieldError({ children }) {
   return children ? <p className="field-error">{children}</p> : null;
 }
 
+function friendlySignupError(error) {
+  const message = (error?.message || "").toLowerCase();
+  if (message.includes("rate limit") || message.includes("too many") || message.includes("email rate limit")) {
+    return "Supabase has temporarily paused confirmation emails because too many were requested. Please wait a little while before trying again, or use a different test email.";
+  }
+  if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
+    return "An account already exists for this email. Please use Log In instead, or reset your password if you do not remember it.";
+  }
+  if (message.includes("confirm")) {
+    return "This email needs to be confirmed before it can be used to log in. Please check your inbox for the Supabase confirmation email.";
+  }
+  return error?.message || "Unable to create account.";
+}
+
 function SignupContent() {
   const { session, signUp } = useAuth();
   const [form, setForm] = useState({ displayName: "", email: "", password: "", confirm: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -42,11 +57,16 @@ function SignupContent() {
     if (Object.keys(nextErrors).length) return;
 
     setSubmitting(true);
+    setNotice("");
     try {
-      await signUp(form.email.trim(), form.password, form.displayName.trim());
-      window.location.replace("/");
+      const data = await signUp(form.email.trim(), form.password, form.displayName.trim());
+      if (data.session) {
+        window.location.replace("/");
+        return;
+      }
+      setNotice("Account created. Please check your email and confirm your account before logging in.");
     } catch (err) {
-      setErrors({ form: err.message || "Unable to create account." });
+      setErrors({ form: friendlySignupError(err) });
     } finally {
       setSubmitting(false);
     }
@@ -70,6 +90,7 @@ function SignupContent() {
         <input value={form.confirm} onChange={(event) => setField("confirm", event.target.value)} type={showPassword ? "text" : "password"} placeholder="Confirm password" />
         <AuthFieldError>{errors.confirm}</AuthFieldError>
         <AuthFieldError>{errors.form}</AuthFieldError>
+        {notice && <p className="inline-status">{notice}</p>}
         <Button disabled={submitting}>{submitting ? "Creating account" : "Create Account"}</Button>
         <p className="auth-legal">
           Already have an account? <Link href="/login">Log in</Link>.
@@ -86,4 +107,3 @@ export default function SignupClient() {
     </AuthProvider>
   );
 }
-
