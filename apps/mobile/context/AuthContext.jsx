@@ -47,6 +47,13 @@ async function signUp(email, password, displayName) {
   });
   if (error) throw error;
 
+<<<<<<< HEAD
+=======
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error("An account with this email already exists. Please log in instead.");
+  }
+
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   if (data.user && data.session) {
     const { error: profileError } = await supabase
       .from("users")
@@ -56,6 +63,11 @@ async function signUp(email, password, displayName) {
         avatar_url: data.user.user_metadata?.avatar_url || null
       });
     if (profileError) throw profileError;
+  }
+
+  if (!data.session) {
+    const signedIn = await signIn(email, password);
+    return signedIn;
   }
 
   return data;

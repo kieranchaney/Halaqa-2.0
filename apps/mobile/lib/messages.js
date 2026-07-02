@@ -38,6 +38,28 @@ export async function sendMessage(groupId, userId, body) {
   return normalizeMessage(data);
 }
 
+export async function sendLessonMessage(groupId, userId, body, groupLessonId, parentMessageId) {
+  const payload = { group_id: groupId, user_id: userId, body, is_system: false, group_lesson_id: groupLessonId };
+
+  if (parentMessageId) {
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({ ...payload, parent_message_id: parentMessageId })
+      .select("*, users(display_name, avatar_url)")
+      .single();
+    if (!error) return normalizeMessage(data);
+    if (!String(error.message || "").toLowerCase().includes("parent_message_id")) throw error;
+  }
+
+  const { data, error } = await supabase
+    .from("messages")
+    .insert(payload)
+    .select("*, users(display_name, avatar_url)")
+    .single();
+  if (error) throw error;
+  return normalizeMessage(data);
+}
+
 export function subscribeToMessages(groupId, callback) {
   return supabase
     .channel(`messages:${groupId}`)

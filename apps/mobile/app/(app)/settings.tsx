@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+import AsyncStorage from "@react-native-async-storage/async-storage";
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -14,10 +18,15 @@ const colors = {
   border: "#E6DED2",
   danger: "#7D1F1F"
 };
+<<<<<<< HEAD
+=======
+const BLOCKED_KEY = "halaqa_blocked_users";
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<any | null>(null);
+<<<<<<< HEAD
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -27,6 +36,37 @@ export default function SettingsScreen() {
       if (!error) setProfile(data);
     }
     loadProfile();
+=======
+<<<<<<< HEAD
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+
+  async function loadBlockedUsers() {
+    const raw = await AsyncStorage.getItem(BLOCKED_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    if (ids.length === 0) {
+      setBlockedUsers([]);
+      return;
+    }
+    const { data, error } = await supabase.from("users").select("id, display_name").in("id", ids);
+    if (error) {
+      setBlockedUsers(ids.map((id: string) => ({ id, display_name: "Blocked user" })));
+      return;
+    }
+    setBlockedUsers(data || []);
+  }
+=======
+  const [deleting, setDeleting] = useState(false);
+>>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
+
+  useEffect(() => {
+    async function load() {
+      if (!user?.id) return;
+      const { data, error } = await supabase.from("users").select("display_name").eq("id", user.id).maybeSingle();
+      if (!error) setProfile(data);
+      await loadBlockedUsers();
+    }
+    load();
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   }, [user?.id]);
 
   async function logout() {
@@ -38,6 +78,28 @@ export default function SettingsScreen() {
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  async function changePassword() {
+    if (!user?.email) return Alert.alert("No email found", "Your account email is not available.");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+      if (error) throw error;
+      Alert.alert("Check your email", "A password reset link has been sent to your email.");
+    } catch (error: any) {
+      Alert.alert("Unable to send reset link", error.message || "Please try again.");
+    }
+  }
+
+  async function unblockUser(userId: string) {
+    const raw = await AsyncStorage.getItem(BLOCKED_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    const next = ids.filter((id: string) => id !== userId);
+    await AsyncStorage.setItem(BLOCKED_KEY, JSON.stringify(next));
+    await loadBlockedUsers();
+=======
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   async function deleteAccount() {
     setDeleting(true);
     try {
@@ -61,6 +123,10 @@ export default function SettingsScreen() {
         { text: "Delete Account", style: "destructive", onPress: deleteAccount }
       ]
     );
+<<<<<<< HEAD
+=======
+>>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   }
 
   return (
@@ -80,6 +146,33 @@ export default function SettingsScreen() {
         <Text style={styles.primaryText}>Sign Out</Text>
       </Pressable>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      <Pressable style={styles.secondaryButton} onPress={changePassword}>
+        <Text style={styles.secondaryText}>Change Password</Text>
+      </Pressable>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Blocked Users</Text>
+        {blockedUsers.length === 0 ? (
+          <Text style={styles.muted}>No blocked users.</Text>
+        ) : (
+          blockedUsers.map((blocked) => (
+            <View key={blocked.id} style={styles.blockedRow}>
+              <Text style={styles.value}>{blocked.display_name || "Blocked user"}</Text>
+              <Pressable onPress={() => unblockUser(blocked.id)}>
+                <Text style={styles.unblockText}>Unblock</Text>
+              </Pressable>
+            </View>
+          ))
+        )}
+      </View>
+
+      <Pressable style={styles.deleteLink} onPress={() => router.push("/(app)/delete-account")}>
+        <Text style={styles.deleteText}>Delete Account</Text>
+=======
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
       <View style={styles.links}>
         <Pressable onPress={() => Linking.openURL("https://sites.google.com/view/halaqatermsofservice/home")}>
           <Text style={styles.policyLink}>Terms of Service</Text>
@@ -91,6 +184,10 @@ export default function SettingsScreen() {
 
       <Pressable style={[styles.deleteLink, deleting && styles.disabled]} onPress={confirmDeleteAccount} disabled={deleting}>
         <Text style={styles.deleteText}>{deleting ? "Deleting..." : "Delete Account"}</Text>
+<<<<<<< HEAD
+=======
+>>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
       </Pressable>
     </ScrollView>
   );
@@ -106,8 +203,21 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
   primaryButton: { minHeight: 48, borderRadius: 8, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
   primaryText: { color: "#FFFFFF", fontWeight: "800" },
+<<<<<<< HEAD
   links: { alignItems: "center", gap: 10, marginTop: 18 },
   policyLink: { color: colors.green, fontWeight: "800", textDecorationLine: "underline" },
+=======
+<<<<<<< HEAD
+  secondaryButton: { minHeight: 48, borderRadius: 8, backgroundColor: "#E8E1D5", alignItems: "center", justifyContent: "center", marginTop: 10, marginBottom: 16 },
+  secondaryText: { color: colors.green, fontWeight: "800" },
+  muted: { color: colors.muted, marginTop: 4 },
+  blockedRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 12 },
+  unblockText: { color: colors.green, fontWeight: "800" },
+=======
+  links: { alignItems: "center", gap: 10, marginTop: 18 },
+  policyLink: { color: colors.green, fontWeight: "800", textDecorationLine: "underline" },
+>>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
+>>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   deleteLink: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: 10 },
   disabled: { opacity: 0.45 },
   deleteText: { color: colors.danger, fontWeight: "800" }
