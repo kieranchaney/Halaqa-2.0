@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 import AsyncStorage from "@react-native-async-storage/async-storage";
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -18,26 +15,11 @@ const colors = {
   border: "#E6DED2",
   danger: "#7D1F1F"
 };
-<<<<<<< HEAD
-=======
 const BLOCKED_KEY = "halaqa_blocked_users";
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<any | null>(null);
-<<<<<<< HEAD
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    async function loadProfile() {
-      if (!user?.id) return;
-      const { data, error } = await supabase.from("users").select("display_name").eq("id", user.id).maybeSingle();
-      if (!error) setProfile(data);
-    }
-    loadProfile();
-=======
-<<<<<<< HEAD
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
 
   async function loadBlockedUsers() {
@@ -54,9 +36,6 @@ export default function SettingsScreen() {
     }
     setBlockedUsers(data || []);
   }
-=======
-  const [deleting, setDeleting] = useState(false);
->>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
 
   useEffect(() => {
     async function load() {
@@ -66,7 +45,6 @@ export default function SettingsScreen() {
       await loadBlockedUsers();
     }
     load();
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   }, [user?.id]);
 
   async function logout() {
@@ -78,16 +56,22 @@ export default function SettingsScreen() {
     }
   }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
   async function changePassword() {
-    if (!user?.email) return Alert.alert("No email found", "Your account email is not available.");
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
+      console.log("Change password pressed: fetching current auth user");
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      const email = userData.user?.email;
+      if (!email) return Alert.alert("No email found", "Your account email is not available.");
+
+      console.log("Calling resetPasswordForEmail for current user");
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) throw error;
+      console.log("resetPasswordForEmail completed successfully");
       Alert.alert("Check your email", "A password reset link has been sent to your email.");
     } catch (error: any) {
+      console.log("resetPasswordForEmail failed", error);
       Alert.alert("Unable to send reset link", error.message || "Please try again.");
     }
   }
@@ -98,35 +82,6 @@ export default function SettingsScreen() {
     const next = ids.filter((id: string) => id !== userId);
     await AsyncStorage.setItem(BLOCKED_KEY, JSON.stringify(next));
     await loadBlockedUsers();
-=======
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
-  async function deleteAccount() {
-    setDeleting(true);
-    try {
-      const { error } = await supabase.functions.invoke("delete-account");
-      if (error) throw error;
-      await signOut();
-      router.replace("/(auth)/login");
-    } catch (error: any) {
-      Alert.alert("Unable to delete account", error.message || "Please try again.");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  function confirmDeleteAccount() {
-    Alert.alert(
-      "Are you sure?",
-      "This will permanently delete your account and all your data. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete Account", style: "destructive", onPress: deleteAccount }
-      ]
-    );
-<<<<<<< HEAD
-=======
->>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   }
 
   return (
@@ -146,9 +101,6 @@ export default function SettingsScreen() {
         <Text style={styles.primaryText}>Sign Out</Text>
       </Pressable>
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
       <Pressable style={styles.secondaryButton} onPress={changePassword}>
         <Text style={styles.secondaryText}>Change Password</Text>
       </Pressable>
@@ -171,23 +123,6 @@ export default function SettingsScreen() {
 
       <Pressable style={styles.deleteLink} onPress={() => router.push("/(app)/delete-account")}>
         <Text style={styles.deleteText}>Delete Account</Text>
-=======
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
-      <View style={styles.links}>
-        <Pressable onPress={() => Linking.openURL("https://sites.google.com/view/halaqatermsofservice/home")}>
-          <Text style={styles.policyLink}>Terms of Service</Text>
-        </Pressable>
-        <Pressable onPress={() => Linking.openURL("https://sites.google.com/view/halaqa-privacy-policy/privacy-policy")}>
-          <Text style={styles.policyLink}>Privacy Policy</Text>
-        </Pressable>
-      </View>
-
-      <Pressable style={[styles.deleteLink, deleting && styles.disabled]} onPress={confirmDeleteAccount} disabled={deleting}>
-        <Text style={styles.deleteText}>{deleting ? "Deleting..." : "Delete Account"}</Text>
-<<<<<<< HEAD
-=======
->>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
       </Pressable>
     </ScrollView>
   );
@@ -203,21 +138,11 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
   primaryButton: { minHeight: 48, borderRadius: 8, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
   primaryText: { color: "#FFFFFF", fontWeight: "800" },
-<<<<<<< HEAD
-  links: { alignItems: "center", gap: 10, marginTop: 18 },
-  policyLink: { color: colors.green, fontWeight: "800", textDecorationLine: "underline" },
-=======
-<<<<<<< HEAD
   secondaryButton: { minHeight: 48, borderRadius: 8, backgroundColor: "#E8E1D5", alignItems: "center", justifyContent: "center", marginTop: 10, marginBottom: 16 },
   secondaryText: { color: colors.green, fontWeight: "800" },
   muted: { color: colors.muted, marginTop: 4 },
   blockedRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 12 },
   unblockText: { color: colors.green, fontWeight: "800" },
-=======
-  links: { alignItems: "center", gap: 10, marginTop: 18 },
-  policyLink: { color: colors.green, fontWeight: "800", textDecorationLine: "underline" },
->>>>>>> fa75a8d9704cf037efe003dbf2fdfd94d7602bcd
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
   deleteLink: { minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: 10 },
   disabled: { opacity: 0.45 },
   deleteText: { color: colors.danger, fontWeight: "800" }

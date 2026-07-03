@@ -99,8 +99,6 @@ export async function joinGroupByCode(inviteCode) {
   return group;
 }
 
-<<<<<<< HEAD
-=======
 export async function leaveGroup(groupId, userId) {
   const members = await getGroupMembers(groupId);
   const currentMember = members.find((member) => member.user_id === userId);
@@ -142,7 +140,6 @@ export async function removeGroupMember(groupId, userId) {
   if (error) throw error;
 }
 
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
 export async function getLatestGroupLesson(groupId) {
   const { data, error } = await supabase
     .from("group_lessons")
@@ -169,8 +166,6 @@ export async function getReflectionResponse(groupLessonId, userId) {
   return data;
 }
 
-<<<<<<< HEAD
-=======
 export async function getReflectionResponses(groupLessonId) {
   const { data, error } = await supabase
     .from("reflection_responses")
@@ -184,7 +179,6 @@ export async function getReflectionResponses(groupLessonId) {
   }));
 }
 
->>>>>>> f770a1f6dba6cb31e912d1882079544923dd4433
 export async function submitReflection(groupLessonId, groupId, userId, body) {
   const { data, error } = await supabase
     .from("reflection_responses")

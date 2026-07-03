@@ -9,6 +9,10 @@ export default function RootLayout() {
       const url = await Linking.getInitialURL();
       if (url?.startsWith("halaqa://reset-password")) {
         router.push(`/(auth)/reset-password?url=${encodeURIComponent(url)}`);
+      } else if (url?.startsWith("halaqa://join")) {
+        const parsed = Linking.parse(url);
+        const code = typeof parsed.queryParams?.code === "string" ? parsed.queryParams.code : "";
+        router.push(`/(app)/halaqa?joinCode=${encodeURIComponent(code)}`);
       }
     }
 
@@ -16,6 +20,10 @@ export default function RootLayout() {
     const subscription = Linking.addEventListener("url", ({ url }) => {
       if (url.startsWith("halaqa://reset-password")) {
         router.push(`/(auth)/reset-password?url=${encodeURIComponent(url)}`);
+      } else if (url.startsWith("halaqa://join")) {
+        const parsed = Linking.parse(url);
+        const code = typeof parsed.queryParams?.code === "string" ? parsed.queryParams.code : "";
+        router.push(`/(app)/halaqa?joinCode=${encodeURIComponent(code)}`);
       }
     });
 
@@ -28,4 +36,3 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
-

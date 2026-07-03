@@ -7,6 +7,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
@@ -26,7 +27,12 @@ export default function LoginScreen() {
       <Text style={styles.logo}>H</Text>
       <Text style={styles.title}>Log in</Text>
       <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" autoCapitalize="none" keyboardType="email-address" />
-      <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry />
+      <View style={styles.passwordRow}>
+        <TextInput style={styles.passwordInput} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry={!showPassword} />
+        <Pressable style={styles.toggleButton} onPress={() => setShowPassword((current) => !current)}>
+          <Text style={styles.toggleText}>{showPassword ? "Hide" : "Show"}</Text>
+        </Pressable>
+      </View>
       <Pressable style={styles.button} onPress={submit} disabled={submitting}>
         <Text style={styles.buttonText}>{submitting ? "Logging in..." : "Log In"}</Text>
       </Pressable>
@@ -38,12 +44,16 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#f9f6f0" },
-  logo: { alignSelf: "center", width: 72, height: 72, borderRadius: 36, backgroundColor: "#1b4332", color: "#c9a84c", textAlign: "center", lineHeight: 72, fontSize: 32, fontWeight: "700", marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: "700", color: "#1b4332", marginBottom: 18 },
-  input: { minHeight: 48, borderWidth: 1, borderColor: "#ded5c5", borderRadius: 8, backgroundColor: "#fffdfa", paddingHorizontal: 14, marginBottom: 12 },
-  button: { minHeight: 48, borderRadius: 8, backgroundColor: "#1b4332", alignItems: "center", justifyContent: "center", marginTop: 6 },
+  screen: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#FAF8F5" },
+  logo: { alignSelf: "center", width: 72, height: 72, borderRadius: 36, backgroundColor: "#1B4332", color: "#C9A84C", textAlign: "center", lineHeight: 72, fontSize: 32, fontWeight: "700", marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: "700", color: "#1B4332", marginBottom: 18 },
+  input: { minHeight: 48, borderWidth: 0, borderRadius: 16, backgroundColor: "#FFFFFF", paddingHorizontal: 14, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  passwordRow: { minHeight: 48, flexDirection: "row", alignItems: "center", borderRadius: 16, backgroundColor: "#FFFFFF", marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  passwordInput: { flex: 1, minHeight: 48, paddingHorizontal: 14 },
+  toggleButton: { minHeight: 48, justifyContent: "center", paddingHorizontal: 14 },
+  toggleText: { color: "#1B4332", fontWeight: "800" },
+  button: { minHeight: 48, borderRadius: 8, backgroundColor: "#1B4332", alignItems: "center", justifyContent: "center", marginTop: 6 },
   buttonText: { color: "white", fontWeight: "800" },
-  link: { color: "#1b4332", fontWeight: "800", textAlign: "center", marginTop: 18 }
+  link: { color: "#1B4332", fontWeight: "800", textAlign: "center", marginTop: 18 }
 });
 

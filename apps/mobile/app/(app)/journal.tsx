@@ -3,8 +3,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useAuth } from "../../context/AuthContext";
 
-const STORAGE_KEY = "halaqa_journal_entries";
 const tags = ["Reflection", "Goal", "Gratitude", "Dua", "Note"];
 const colors = {
   background: "#FAF8F5",
@@ -27,6 +27,8 @@ function formatDate(value: string) {
 }
 
 export default function JournalScreen() {
+  const { user } = useAuth();
+  const storageKey = user?.id ? `halaqa_journal_${user.id}` : "halaqa_journal_guest";
   const [entries, setEntries] = useState<any[]>([]);
   const [mode, setMode] = useState<"list" | "compose" | "read">("list");
   const [selected, setSelected] = useState<any | null>(null);
@@ -40,16 +42,16 @@ export default function JournalScreen() {
 
   async function persist(nextEntries: any[]) {
     setEntries(nextEntries);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextEntries));
+    await AsyncStorage.setItem(storageKey, JSON.stringify(nextEntries));
   }
 
   useEffect(() => {
     async function load() {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      const raw = await AsyncStorage.getItem(storageKey);
       setEntries(raw ? JSON.parse(raw) : []);
     }
     load();
-  }, []);
+  }, [storageKey]);
 
   async function saveEntry() {
     if (!body.trim()) return;

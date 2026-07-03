@@ -10,6 +10,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [inlineError, setInlineError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const checks = [
@@ -21,6 +22,7 @@ export default function SignupScreen() {
   const passwordIsStrong = checks.every((check) => check.valid);
 
   async function submit() {
+    setInlineError("");
     if (!displayName.trim()) return Alert.alert("Display name required");
     if (!passwordIsStrong) return Alert.alert("Password incomplete", "Please complete every password rule.");
     if (password !== confirm) return Alert.alert("Passwords do not match");
@@ -32,7 +34,7 @@ export default function SignupScreen() {
       const message = String(error.message || "Please try again.");
       const lower = message.toLowerCase();
       if (lower.includes("already") || lower.includes("registered") || lower.includes("exists")) {
-        Alert.alert("Unable to sign up", "An account with this email already exists. Please log in instead.");
+        setInlineError("An account with this email already exists. Please log in instead.");
       } else {
         Alert.alert("Unable to sign up", message);
       }
@@ -64,7 +66,7 @@ export default function SignupScreen() {
           secureTextEntry={!showPassword}
         />
         <Pressable style={styles.eyeButton} onPress={() => setShowPassword((current) => !current)}>
-          <Text style={styles.eyeText}>{showPassword ? "Hide" : "Eye"}</Text>
+          <Text style={styles.eyeText}>{showPassword ? "Hide" : "Show"}</Text>
         </Pressable>
       </View>
       <View style={styles.checklist}>
@@ -75,6 +77,7 @@ export default function SignupScreen() {
         ))}
       </View>
       <TextInput style={styles.input} value={confirm} onChangeText={setConfirm} placeholder="Confirm password" secureTextEntry={!showPassword} />
+      {inlineError ? <Text style={styles.inlineError}>{inlineError}</Text> : null}
       <Pressable style={styles.button} onPress={submit} disabled={submitting}>
         <Text style={styles.buttonText}>{submitting ? "Creating..." : "Create Account"}</Text>
       </Pressable>
@@ -96,20 +99,21 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#f9f6f0" },
-  logo: { alignSelf: "center", width: 72, height: 72, borderRadius: 36, backgroundColor: "#1b4332", color: "#c9a84c", textAlign: "center", lineHeight: 72, fontSize: 32, fontWeight: "700", marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: "700", color: "#1b4332", marginBottom: 18 },
-  input: { minHeight: 48, borderWidth: 1, borderColor: "#ded5c5", borderRadius: 8, backgroundColor: "#fffdfa", paddingHorizontal: 14, marginBottom: 12 },
-  passwordRow: { minHeight: 48, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#ded5c5", borderRadius: 8, backgroundColor: "#fffdfa", marginBottom: 8 },
+  screen: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#FAF8F5" },
+  logo: { alignSelf: "center", width: 72, height: 72, borderRadius: 36, backgroundColor: "#1B4332", color: "#C9A84C", textAlign: "center", lineHeight: 72, fontSize: 32, fontWeight: "700", marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: "700", color: "#1B4332", marginBottom: 18 },
+  input: { minHeight: 48, borderWidth: 0, borderRadius: 16, backgroundColor: "#FFFFFF", paddingHorizontal: 14, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  passwordRow: { minHeight: 48, flexDirection: "row", alignItems: "center", borderRadius: 16, backgroundColor: "#FFFFFF", marginBottom: 8, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   passwordInput: { flex: 1, minHeight: 48, paddingHorizontal: 14 },
   eyeButton: { minHeight: 48, justifyContent: "center", paddingHorizontal: 12 },
-  eyeText: { color: "#1b4332", fontWeight: "800" },
+  eyeText: { color: "#1B4332", fontWeight: "800" },
   checklist: { marginBottom: 12 },
-  checkText: { color: "#7d1f1f", fontSize: 13, lineHeight: 20 },
-  checkTextValid: { color: "#1b4332" },
-  button: { minHeight: 48, borderRadius: 8, backgroundColor: "#1b4332", alignItems: "center", justifyContent: "center", marginTop: 6 },
+  checkText: { color: "#7D1F1F", fontSize: 13, lineHeight: 20 },
+  checkTextValid: { color: "#1B4332" },
+  inlineError: { color: "#7D1F1F", fontWeight: "800", lineHeight: 20, marginBottom: 10 },
+  button: { minHeight: 48, borderRadius: 8, backgroundColor: "#1B4332", alignItems: "center", justifyContent: "center", marginTop: 6 },
   buttonText: { color: "white", fontWeight: "800" },
   agreementText: { color: "#4d5d53", fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 14 },
-  agreementLink: { color: "#1b4332", fontWeight: "800", textDecorationLine: "underline" },
-  link: { color: "#1b4332", fontWeight: "800", textAlign: "center", marginTop: 18 }
+  agreementLink: { color: "#1B4332", fontWeight: "800", textDecorationLine: "underline" },
+  link: { color: "#1B4332", fontWeight: "800", textAlign: "center", marginTop: 18 }
 });
