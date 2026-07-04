@@ -1,0 +1,76 @@
+import { supabase } from "./supabaseClient";
+
+function normalizeMessage(row) {
+  return {
+    ...row,
+    display_name: row.is_system ? "Halaqa" : row.users?.display_name || "Member"
+  };
+}
+
+export async function getMessages(groupId, limit = 100, cursor) {
+  let query = supabase
+    .from("messages")
+    .select("*, users(display_name, avatar_url)")
+    .eq("group_id", groupId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (cursor) query = query.lt("created_at", cursor);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(normalizeMessage).reverse();
+}
+
+export async function getVisibleMessages(groupId, blockedUserIds = [], limit = 100, cursor) {
+  const messages = await getMessages(groupId, limit, cursor);
+  if (!blockedUserIds.length) return messages;
+  return messages.filter((message) => message.is_system || !blockedUserIds.includes(message.user_id));
+}
+
+export async function sendMessage(groupId, userId, body) {
+  const { data, error } = await supabase
+    .from("messages")
+    .insert({ group_id: groupId, user_id: userId, body, is_system: false })
+    .select("*, users(display_name, avatar_url)")
+    .single();
+  if (error) throw error;
+  return normalizeMessage(data);
+}
+
+export async function sendLessonMessage(groupId, userId, body, groupLessonId, parentMessageId) {
+  const payload = { group_id: groupId, user_id: userId, body, is_system: false, group_lesson_id: groupLessonId };
+
+  if (parentMessageId) {
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({ ...payload, parent_message_id: parentMessageId })
+      .select("*, users(display_name, avatar_url)")
+      .single();
+    if (!error) return normalizeMessage(data);
+    if (!String(error.message || "").toLowerCase().includes("parent_message_id")) throw error;
+  }
+
+  const { data, error } = await supabase
+    .from("messages")
+    .insert(payload)
+    .select("*, users(display_name, avatar_url)")
+    .single();
+  if (error) throw error;
+  return normalizeMessage(data);
+}
+
+export function subscribeToMessages(groupId, callback) {
+  return supabase
+    .channel(`messages:${groupId}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "messages", filter: `group_id=eq.${groupId}` },
+      callback
+    )
+    .subscribe();
+}
+
+export function unsubscribe(subscription) {
+  return supabase.removeChannel(subscription);
+}
