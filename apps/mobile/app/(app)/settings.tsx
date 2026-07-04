@@ -1,8 +1,8 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
+import { getBlockedUsers, unblockUser } from "../../lib/moderation";
 import { supabase } from "../../lib/supabaseClient";
 
 const colors = {
@@ -15,26 +15,14 @@ const colors = {
   border: "#E6DED2",
   danger: "#7D1F1F"
 };
-const BLOCKED_KEY = "halaqa_blocked_users";
-
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<any | null>(null);
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
 
   async function loadBlockedUsers() {
-    const raw = await AsyncStorage.getItem(BLOCKED_KEY);
-    const ids = raw ? JSON.parse(raw) : [];
-    if (ids.length === 0) {
-      setBlockedUsers([]);
-      return;
-    }
-    const { data, error } = await supabase.from("users").select("id, display_name").in("id", ids);
-    if (error) {
-      setBlockedUsers(ids.map((id: string) => ({ id, display_name: "Blocked user" })));
-      return;
-    }
-    setBlockedUsers(data || []);
+    if (!user?.id) return;
+    setBlockedUsers(await getBlockedUsers(user.id));
   }
 
   useEffect(() => {
@@ -76,11 +64,9 @@ export default function SettingsScreen() {
     }
   }
 
-  async function unblockUser(userId: string) {
-    const raw = await AsyncStorage.getItem(BLOCKED_KEY);
-    const ids = raw ? JSON.parse(raw) : [];
-    const next = ids.filter((id: string) => id !== userId);
-    await AsyncStorage.setItem(BLOCKED_KEY, JSON.stringify(next));
+  async function unblockBlockedUser(blockedUserId: string) {
+    if (!user?.id) return;
+    await unblockUser(user.id, blockedUserId);
     await loadBlockedUsers();
   }
 
@@ -112,8 +98,8 @@ export default function SettingsScreen() {
         ) : (
           blockedUsers.map((blocked) => (
             <View key={blocked.id} style={styles.blockedRow}>
-              <Text style={styles.value}>{blocked.display_name || "Blocked user"}</Text>
-              <Pressable onPress={() => unblockUser(blocked.id)}>
+              <Text style={styles.value}>{blocked.user?.display_name || blocked.user?.username || "Blocked user"}</Text>
+              <Pressable onPress={() => unblockBlockedUser(blocked.blocked_user_id)}>
                 <Text style={styles.unblockText}>Unblock</Text>
               </Pressable>
             </View>

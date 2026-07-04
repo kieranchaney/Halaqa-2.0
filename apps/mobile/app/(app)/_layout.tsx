@@ -27,8 +27,10 @@ export default function AppTabsLayout() {
         }
       }}
     >
+      <Tabs.Screen name="feed" options={{ title: "Feed", tabBarIcon: () => null }} />
       <Tabs.Screen name="halaqa" options={{ title: "Halaqa", tabBarIcon: () => null }} />
       <Tabs.Screen name="journal" options={{ title: "Journal", tabBarIcon: () => null }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: () => null }} />
       <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: () => null }} />
       <Tabs.Screen name="onboarding" options={{ href: null }} />
       <Tabs.Screen name="delete-account" options={{ href: null }} />

@@ -5,6 +5,17 @@ import { supabase } from "../lib/supabaseClient";
 
 const AuthContext = createContext(null);
 
+function defaultUsername(email, displayName) {
+  const base = (displayName || email?.split("@")[0] || "user")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 16);
+  const safe = base.length >= 3 ? base : "user";
+  return `${safe}_${Math.random().toString(36).slice(2, 6)}`.slice(0, 20);
+}
+
 async function loadProfile(session) {
   if (!session?.user) return null;
   const fallbackName =
@@ -25,6 +36,7 @@ async function loadProfile(session) {
       .upsert({
         id: session.user.id,
         display_name: fallbackName,
+        username: defaultUsername(session.user.email, fallbackName),
         avatar_url: session.user.user_metadata?.avatar_url || null
       })
       .select("*")
@@ -35,6 +47,9 @@ async function loadProfile(session) {
   return {
     ...session.user,
     display_name: profile?.display_name || fallbackName,
+    username: profile?.username,
+    bio: profile?.bio || "",
+    is_private: Boolean(profile?.is_private),
     profile
   };
 }
@@ -57,6 +72,7 @@ async function signUp(email, password, displayName) {
       .upsert({
         id: data.user.id,
         display_name: displayName,
+        username: defaultUsername(email, displayName),
         avatar_url: data.user.user_metadata?.avatar_url || null
       });
     if (profileError) throw profileError;
