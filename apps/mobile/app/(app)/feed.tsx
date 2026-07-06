@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { addComment, getComments, getCurrentGlobalPrompt, getFriendsResponses, getMyResponse, getWeeklyGems, likeResponse, markGemViewed, reportComment, reportResponse, submitOrUpdateResponse, unlikeResponse } from "../../lib/feed";
 import { blockUser } from "../../lib/moderation";
@@ -25,7 +26,8 @@ export default function FeedScreen() {
   const [body, setBody] = useState("");
   const [responses, setResponses] = useState<any[]>([]);
   const [gems, setGems] = useState<any[]>([]);
-  const [gemIndex, setGemIndex] = useState(0);
+  const gemsRef = useRef<any[]>([]);
+  const markedGemIdsRef = useRef<Set<string>>(new Set());
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [commentsByResponse, setCommentsByResponse] = useState<Record<string, any[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -43,7 +45,6 @@ export default function FeedScreen() {
       const [currentPrompt, weeklyGems] = await Promise.all([getCurrentGlobalPrompt(), getWeeklyGems(10)]);
       setPrompt(currentPrompt);
       setGems(weeklyGems);
-      setGemIndex(0);
       const mine = await getMyResponse(user.id, currentPrompt.id);
       setMyResponse(mine);
       setBody(mine?.body || "");
@@ -59,6 +60,24 @@ export default function FeedScreen() {
   useEffect(() => {
     load();
   }, [user?.id]);
+
+  useEffect(() => {
+    gemsRef.current = gems;
+  }, [gems]);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        const idsToMark = gemsRef.current
+          .map((gem: any) => gem.response_id)
+          .filter((id: string) => id && !markedGemIdsRef.current.has(id));
+
+        if (idsToMark.length === 0) return;
+        idsToMark.forEach((id) => markedGemIdsRef.current.add(id));
+        Promise.all(idsToMark.map((id: string) => markGemViewed(id))).catch(() => {});
+      };
+    }, [])
+  );
 
   async function submit() {
     if (!user?.id || !prompt?.id || !body.trim()) return;
@@ -86,17 +105,6 @@ export default function FeedScreen() {
       await refreshResponses();
     } catch (error: any) {
       Alert.alert("Unable to update like", error.message || "Please try again.");
-    }
-  }
-
-  async function nextGem() {
-    const currentGem = gems[gemIndex];
-    if (!currentGem) return;
-    try {
-      await markGemViewed(currentGem.response_id);
-      setGemIndex((current) => current + 1);
-    } catch (error: any) {
-      Alert.alert("Unable to advance gem", error.message || "Please try again.");
     }
   }
 
@@ -210,7 +218,6 @@ export default function FeedScreen() {
   }
 
   const lesson = prompt?.lessons;
-  const currentGem = gems[gemIndex];
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -219,25 +226,24 @@ export default function FeedScreen() {
 
       <View style={styles.gemsSection}>
         <Text style={styles.sectionTitle}>Weekly Gems</Text>
-        {currentGem ? (
-          <View style={styles.gemCard}>
-            <View style={styles.responseHeader}>
-              <View style={styles.avatarGold}>
-                <Text style={styles.avatarGoldText}>{(currentGem.display_name || currentGem.username || "M").slice(0, 1).toUpperCase()}</Text>
+        {gems.length > 0 ? (
+          gems.map((gem: any) => (
+            <View key={gem.response_id} style={styles.gemCard}>
+              <View style={styles.responseHeader}>
+                <View style={styles.avatarGold}>
+                  <Text style={styles.avatarGoldText}>{(gem.display_name || gem.username || "M").slice(0, 1).toUpperCase()}</Text>
+                </View>
+                <View style={styles.gemIdentity}>
+                  <Text style={styles.name}>{gem.display_name || gem.username || "Member"}</Text>
+                  <Text style={styles.username}>@{gem.username || "member"} - {formatDate(gem.created_at)}</Text>
+                </View>
               </View>
-              <View style={styles.gemIdentity}>
-                <Text style={styles.name}>{currentGem.display_name || currentGem.username || "Member"}</Text>
-                <Text style={styles.username}>@{currentGem.username || "member"} - {formatDate(currentGem.created_at)}</Text>
+              <Text style={styles.bodyText}>{gem.body}</Text>
+              <View style={styles.gemFooter}>
+                <Text style={styles.gemLikes}>Likes {gem.like_count || 0}</Text>
               </View>
             </View>
-            <Text style={styles.bodyText}>{currentGem.body}</Text>
-            <View style={styles.gemFooter}>
-              <Text style={styles.gemLikes}>Likes {currentGem.like_count || 0}</Text>
-              <Pressable style={styles.gemNextButton} onPress={nextGem}>
-                <Text style={styles.gemNextText}>Next</Text>
-              </Pressable>
-            </View>
-          </View>
+          ))
         ) : (
           <View style={styles.gemEmptyCard}>
             <Text style={styles.lockedText}>You're all caught up</Text>
