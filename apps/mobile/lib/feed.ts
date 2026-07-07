@@ -1,4 +1,42 @@
+import { decode } from "base64-arraybuffer";
+import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
 import { supabase } from "./supabaseClient";
+
+type IdMeta = Record<string, { likeCount: number; hasLiked: boolean }>;
+type CountMeta = Record<string, number>;
+
+export async function pickResponseImage(): Promise<string | null> {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    quality: 0.7
+  });
+
+  if (result.canceled) return null;
+  return result.assets[0]?.uri || null;
+}
+
+export async function uploadResponseImage(localUri: string, userId: string): Promise<string> {
+  const base64 = await FileSystem.readAsStringAsync(localUri, {
+    encoding: FileSystem.EncodingType.Base64
+  });
+  const arrayBuffer = decode(base64);
+  const path = `${userId}/${Date.now()}.jpg`;
+
+  const { error } = await supabase.storage
+    .from("response-images")
+    .upload(path, arrayBuffer, { contentType: "image/jpeg" });
+  if (error) throw error;
+
+  return path;
+}
+
+export async function getResponseImageUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from("response-images").createSignedUrl(path, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
 
 export async function getCurrentGlobalPrompt() {
   const { data: prompt, error: rpcError } = await supabase.rpc("get_or_create_current_global_prompt");
@@ -14,7 +52,7 @@ export async function getCurrentGlobalPrompt() {
   return data;
 }
 
-export async function getMyResponse(userId, globalPromptId) {
+export async function getMyResponse(userId: string, globalPromptId: string) {
   const { data, error } = await supabase
     .from("prompt_responses")
     .select("*")
@@ -25,11 +63,12 @@ export async function getMyResponse(userId, globalPromptId) {
   return data;
 }
 
-export async function submitOrUpdateResponse(userId, globalPromptId, body) {
+export async function submitOrUpdateResponse(userId: string, globalPromptId: string, body: string, localImageUri?: string | null) {
+  const imagePath = localImageUri ? await uploadResponseImage(localImageUri, userId) : null;
   const { data, error } = await supabase
     .from("prompt_responses")
     .upsert(
-      { user_id: userId, global_prompt_id: globalPromptId, body },
+      { user_id: userId, global_prompt_id: globalPromptId, body, image_url: imagePath },
       { onConflict: "user_id,global_prompt_id" }
     )
     .select("*")
@@ -38,7 +77,7 @@ export async function submitOrUpdateResponse(userId, globalPromptId, body) {
   return data;
 }
 
-export async function likeResponse(responseId) {
+export async function likeResponse(responseId: string) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   const userId = userData.user?.id;
@@ -53,7 +92,7 @@ export async function likeResponse(responseId) {
   if (error) throw error;
 }
 
-export async function unlikeResponse(responseId) {
+export async function unlikeResponse(responseId: string) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   const userId = userData.user?.id;
@@ -73,7 +112,7 @@ export async function getWeeklyGems(limit = 10) {
   return data || [];
 }
 
-export async function markGemViewed(responseId) {
+export async function markGemViewed(responseId: string) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   const userId = userData.user?.id;
@@ -88,7 +127,7 @@ export async function markGemViewed(responseId) {
   if (error) throw error;
 }
 
-export async function reportResponse(responseId, reportedUserId, reason) {
+export async function reportResponse(responseId: string, reportedUserId: string, reason: string) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   const userId = userData.user?.id;
@@ -103,7 +142,7 @@ export async function reportResponse(responseId, reportedUserId, reason) {
   if (error) throw error;
 }
 
-export async function reportComment(commentId, reportedUserId, reason) {
+export async function reportComment(commentId: string, reportedUserId: string, reason: string) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   const userId = userData.user?.id;
@@ -118,7 +157,7 @@ export async function reportComment(commentId, reportedUserId, reason) {
   if (error) throw error;
 }
 
-export async function getLikesForResponses(responseIds) {
+export async function getLikesForResponses(responseIds: string[]) {
   const ids = Array.from(new Set(responseIds || [])).filter(Boolean);
   if (ids.length === 0) return {};
 
@@ -132,7 +171,7 @@ export async function getLikesForResponses(responseIds) {
     .in("response_id", ids);
   if (error) throw error;
 
-  const meta = Object.fromEntries(ids.map((id) => [id, { likeCount: 0, hasLiked: false }]));
+  const meta: IdMeta = Object.fromEntries(ids.map((id) => [id, { likeCount: 0, hasLiked: false }]));
   for (const like of data || []) {
     if (!meta[like.response_id]) meta[like.response_id] = { likeCount: 0, hasLiked: false };
     meta[like.response_id].likeCount += 1;
@@ -141,7 +180,7 @@ export async function getLikesForResponses(responseIds) {
   return meta;
 }
 
-export async function addComment(responseId, body, parentCommentId = null) {
+export async function addComment(responseId: string, body: string, parentCommentId: string | null = null) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   const userId = userData.user?.id;
@@ -156,9 +195,9 @@ export async function addComment(responseId, body, parentCommentId = null) {
   return data;
 }
 
-function buildCommentTree(rows) {
-  const map = new Map();
-  const roots = [];
+function buildCommentTree(rows: any[]) {
+  const map = new Map<string, any>();
+  const roots: any[] = [];
   for (const row of rows || []) {
     map.set(row.id, {
       ...row,
@@ -178,7 +217,7 @@ function buildCommentTree(rows) {
   return roots;
 }
 
-export async function getComments(responseId) {
+export async function getComments(responseId: string) {
   const { data, error } = await supabase
     .from("response_comments")
     .select("*, users(username, display_name, avatar_url)")
@@ -188,12 +227,12 @@ export async function getComments(responseId) {
   return buildCommentTree(data || []);
 }
 
-export async function deleteComment(commentId) {
+export async function deleteComment(commentId: string) {
   const { error } = await supabase.from("response_comments").delete().eq("id", commentId);
   if (error) throw error;
 }
 
-export async function getFriendsResponses(userId, globalPromptId) {
+export async function getFriendsResponses(userId: string, globalPromptId: string) {
   const { data, error } = await supabase
     .from("prompt_responses")
     .select("*, users(username, display_name, avatar_url)")
@@ -202,7 +241,7 @@ export async function getFriendsResponses(userId, globalPromptId) {
     .order("created_at", { ascending: false });
   if (error) throw error;
   const rows = data || [];
-  const responseIds = rows.map((response) => response.id);
+  const responseIds = rows.map((response: any) => response.id);
   const [likes, commentRows] = await Promise.all([
     getLikesForResponses(responseIds),
     responseIds.length
@@ -210,11 +249,11 @@ export async function getFriendsResponses(userId, globalPromptId) {
       : Promise.resolve({ data: [], error: null })
   ]);
   if (commentRows.error) throw commentRows.error;
-  const commentCounts = {};
+  const commentCounts: CountMeta = {};
   for (const comment of commentRows.data || []) {
     commentCounts[comment.response_id] = (commentCounts[comment.response_id] || 0) + 1;
   }
-  return rows.map((response) => ({
+  return rows.map((response: any) => ({
     ...response,
     username: response.users?.username,
     display_name: response.users?.display_name,

@@ -14,8 +14,24 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Halaqa to attach a photo to your weekly reflection."
+        }
+      ]
     ],
+    "ios": {
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow Halaqa to attach a photo to your weekly reflection."
+      }
+    },
+    "android": {
+      "permissions": [
+        "READ_MEDIA_IMAGES"
+      ]
+    },
     "extra": {
       "eas": {
         "projectId": "TODO-LAUNCH-BLOCKER-EAS-PROJECT-ID"

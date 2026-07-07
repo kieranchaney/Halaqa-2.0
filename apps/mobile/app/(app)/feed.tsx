@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { addComment, getComments, getCurrentGlobalPrompt, getFriendsResponses, getMyResponse, getWeeklyGems, likeResponse, markGemViewed, reportComment, reportResponse, submitOrUpdateResponse, unlikeResponse } from "../../lib/feed";
+import { addComment, getComments, getCurrentGlobalPrompt, getFriendsResponses, getMyResponse, getResponseImageUrl, getWeeklyGems, likeResponse, markGemViewed, pickResponseImage, reportComment, reportResponse, submitOrUpdateResponse, unlikeResponse } from "../../lib/feed";
 import { blockUser } from "../../lib/moderation";
 
 const colors = {
@@ -26,6 +26,7 @@ export default function FeedScreen() {
   const [body, setBody] = useState("");
   const [responses, setResponses] = useState<any[]>([]);
   const [gems, setGems] = useState<any[]>([]);
+  const [localImageUri, setLocalImageUri] = useState<string | null>(null);
   const gemsRef = useRef<any[]>([]);
   const markedGemIdsRef = useRef<Set<string>>(new Set());
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
@@ -83,13 +84,23 @@ export default function FeedScreen() {
     if (!user?.id || !prompt?.id || !body.trim()) return;
     setSaving(true);
     try {
-      const saved = await submitOrUpdateResponse(user.id, prompt.id, body.trim());
+      const saved = await submitOrUpdateResponse(user.id, prompt.id, body.trim(), localImageUri);
       setMyResponse(saved);
+      setLocalImageUri(null);
       setResponses(await getFriendsResponses(user.id, prompt.id));
     } catch (error: any) {
       Alert.alert("Unable to save response", error.message || "Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function addPhoto() {
+    try {
+      const uri = await pickResponseImage();
+      if (uri) setLocalImageUri(uri);
+    } catch (error: any) {
+      Alert.alert("Unable to choose photo", error.message || "Please try again.");
     }
   }
 
@@ -267,8 +278,21 @@ export default function FeedScreen() {
           multiline
           textAlignVertical="top"
         />
+        <View style={styles.photoActions}>
+          <Pressable style={styles.photoButton} onPress={addPhoto} disabled={saving}>
+            <Text style={styles.photoButtonText}>{localImageUri ? "Change photo" : "Add photo"}</Text>
+          </Pressable>
+        </View>
+        {localImageUri && (
+          <View style={styles.localImageWrap}>
+            <Image source={{ uri: localImageUri }} style={styles.localImage} />
+            <Pressable style={styles.removeImageButton} onPress={() => setLocalImageUri(null)} disabled={saving}>
+              <Text style={styles.removeImageText}>x</Text>
+            </Pressable>
+          </View>
+        )}
         <Pressable style={[styles.primaryButton, (!body.trim() || saving) && styles.disabled]} onPress={submit} disabled={!body.trim() || saving}>
-          <Text style={styles.primaryText}>{saving ? "Saving..." : myResponse ? "Update" : "Post"}</Text>
+          {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{myResponse ? "Update" : "Post"}</Text>}
         </Pressable>
       </View>
 
@@ -306,6 +330,7 @@ export default function FeedScreen() {
                     )}
                   </View>
                 </View>
+                {response.image_url && <SignedImage imagePath={response.image_url} />}
                 <Text style={styles.bodyText}>{response.body}</Text>
                 <View style={styles.engagementRow}>
                   <Pressable style={styles.engagementButton} onPress={() => toggleLike(response)}>
@@ -383,6 +408,35 @@ export default function FeedScreen() {
       </Modal>
     </ScrollView>
   );
+}
+
+function SignedImage({ imagePath }: { imagePath: string }) {
+  const [uri, setUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setUri(null);
+    getResponseImageUrl(imagePath)
+      .then((signedUrl) => {
+        if (active) setUri(signedUrl);
+      })
+      .catch(() => {
+        if (active) setUri(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [imagePath]);
+
+  if (!uri) {
+    return (
+      <View style={styles.signedImageLoading}>
+        <ActivityIndicator color={colors.green} />
+      </View>
+    );
+  }
+
+  return <Image source={{ uri }} style={styles.signedImage} />;
 }
 
 function CommentNode({ comment, responseId, depth, replyingTo, setReplyingTo, drafts, setDrafts, submitComment, openMenuKey, setOpenMenuKey, openReport, confirmBlock }: any) {
@@ -470,12 +524,21 @@ const styles = StyleSheet.create({
   gemNextButton: { borderRadius: 14, backgroundColor: colors.green, paddingHorizontal: 18, paddingVertical: 10 },
   gemNextText: { color: "#FFFFFF", fontWeight: "800" },
   responseInput: { minHeight: 150, borderRadius: 16, backgroundColor: "#FFFFFF", padding: 12, color: colors.text, lineHeight: 22, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  photoActions: { flexDirection: "row", marginTop: 12 },
+  photoButton: { borderRadius: 14, borderWidth: 1, borderColor: colors.gold, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: colors.background },
+  photoButtonText: { color: colors.green, fontWeight: "800" },
+  localImageWrap: { marginTop: 12, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: colors.border },
+  localImage: { width: "100%", aspectRatio: 4 / 3 },
+  removeImageButton: { position: "absolute", right: 10, top: 10, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
+  removeImageText: { color: "#FFFFFF", fontWeight: "900", marginTop: -1 },
   primaryButton: { minHeight: 48, borderRadius: 16, backgroundColor: colors.green, alignItems: "center", justifyContent: "center", marginTop: 12 },
   primaryText: { color: "#FFFFFF", fontWeight: "800" },
   disabled: { opacity: 0.45 },
   lockedText: { color: colors.green, fontWeight: "800", lineHeight: 22, textAlign: "center" },
   responseCard: { borderRadius: 16, padding: 16, backgroundColor: "#FFFFFF", shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 2, marginBottom: 12 },
   responseHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+  signedImage: { width: "100%", aspectRatio: 4 / 3, borderRadius: 16, marginBottom: 12, backgroundColor: colors.background },
+  signedImageLoading: { width: "100%", aspectRatio: 4 / 3, borderRadius: 16, marginBottom: 12, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" },
   responseIdentity: { flex: 1, flexShrink: 1 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
   avatarText: { color: "#FFFFFF", fontWeight: "800" },
