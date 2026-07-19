@@ -41,6 +41,7 @@ export default function ProfileScreen() {
       </View>
       <Pressable style={styles.primaryButton} onPress={() => router.push("/(app)/profile/edit")}><Text style={styles.primaryText}>Edit Profile</Text></Pressable>
       <Pressable style={styles.secondaryButton} onPress={() => router.push("/(app)/profile/friends")}><Text style={styles.secondaryText}>Friends</Text></Pressable>
+      <Pressable style={styles.settingsButton} onPress={() => router.push("/(app)/profile/settings")}><Text style={styles.settingsText}>Settings</Text></Pressable>
     </ScrollView>
   );
 }
@@ -60,5 +61,7 @@ const styles = StyleSheet.create({
   primaryButton: { minHeight: 48, borderRadius: 16, backgroundColor: colors.green, alignItems: "center", justifyContent: "center" },
   primaryText: { color: "#FFFFFF", fontWeight: "800" },
   secondaryButton: { minHeight: 48, borderRadius: 16, backgroundColor: "#E8E1D5", alignItems: "center", justifyContent: "center", marginTop: 10 },
-  secondaryText: { color: colors.green, fontWeight: "800" }
+  secondaryText: { color: colors.green, fontWeight: "800" },
+  settingsButton: { minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", marginTop: 10 },
+  settingsText: { color: colors.text, fontWeight: "800" }
 });

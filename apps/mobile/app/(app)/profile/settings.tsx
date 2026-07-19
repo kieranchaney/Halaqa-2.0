@@ -1,9 +1,9 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useAuth } from "../../context/AuthContext";
-import { getBlockedUsers, unblockUser } from "../../lib/moderation";
-import { supabase } from "../../lib/supabaseClient";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useAuth } from "../../../context/AuthContext";
+import { getBlockedUsers, unblockUser } from "../../../lib/moderation";
+import { supabase } from "../../../lib/supabaseClient";
 
 const colors = {
   background: "#FAF8F5",

@@ -38,6 +38,7 @@ export default function FeedScreen() {
   const [reportReason, setReportReason] = useState("");
   const [reporting, setReporting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   async function load() {
     if (!user?.id) return;
@@ -83,13 +84,16 @@ export default function FeedScreen() {
   async function submit() {
     if (!user?.id || !prompt?.id || !body.trim()) return;
     setSaving(true);
+    setSaveError("");
     try {
       const saved = await submitOrUpdateResponse(user.id, prompt.id, body.trim(), localImageUri);
       setMyResponse(saved);
       setLocalImageUri(null);
       setResponses(await getFriendsResponses(user.id, prompt.id));
     } catch (error: any) {
-      Alert.alert("Unable to save response", error.message || "Please try again.");
+      const message = error.message || "Please try again.";
+      setSaveError(message);
+      Alert.alert("Unable to save response", message);
     } finally {
       setSaving(false);
     }
@@ -294,6 +298,22 @@ export default function FeedScreen() {
         <Pressable style={[styles.primaryButton, (!body.trim() || saving) && styles.disabled]} onPress={submit} disabled={!body.trim() || saving}>
           {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{myResponse ? "Update" : "Post"}</Text>}
         </Pressable>
+        {saveError ? <Text style={styles.inlineError}>{saveError}</Text> : null}
+        {myResponse ? (
+          <View style={styles.savedResponseCard}>
+            <View style={styles.responseHeader}>
+              <View style={styles.savedAvatar}>
+                <Text style={styles.savedAvatarText}>{(user?.display_name || user?.email || "Y").slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View style={styles.responseIdentity}>
+                <Text style={styles.savedLabel}>Your reflection is live</Text>
+                <Text style={styles.username}>{formatDate(myResponse.created_at)}</Text>
+              </View>
+            </View>
+            {myResponse.image_url && <SignedImage imagePath={myResponse.image_url} />}
+            <Text style={styles.bodyText}>{myResponse.body}</Text>
+          </View>
+        ) : null}
       </View>
 
       {myResponse ? (
@@ -533,8 +553,13 @@ const styles = StyleSheet.create({
   removeImageText: { color: "#FFFFFF", fontWeight: "900", marginTop: -1 },
   primaryButton: { minHeight: 48, borderRadius: 16, backgroundColor: colors.green, alignItems: "center", justifyContent: "center", marginTop: 12 },
   primaryText: { color: "#FFFFFF", fontWeight: "800" },
+  inlineError: { color: "#9F2E2E", fontWeight: "700", lineHeight: 20, marginTop: 10 },
   disabled: { opacity: 0.45 },
   lockedText: { color: colors.green, fontWeight: "800", lineHeight: 22, textAlign: "center" },
+  savedResponseCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.gold, borderLeftWidth: 5, padding: 14, backgroundColor: "#FFFDF9", marginTop: 14 },
+  savedAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.gold, alignItems: "center", justifyContent: "center" },
+  savedAvatarText: { color: colors.green, fontWeight: "900" },
+  savedLabel: { color: colors.green, fontWeight: "900" },
   responseCard: { borderRadius: 16, padding: 16, backgroundColor: "#FFFFFF", shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 2, marginBottom: 12 },
   responseHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
   signedImage: { width: "100%", aspectRatio: 4 / 3, borderRadius: 16, marginBottom: 12, backgroundColor: colors.background },

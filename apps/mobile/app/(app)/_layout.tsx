@@ -56,13 +56,6 @@ export default function AppTabsLayout() {
           tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? "person-circle" : "person-circle-outline"} color={color} size={size} />
         }}
       />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? "settings" : "settings-outline"} color={color} size={size} />
-        }}
-      />
       <Tabs.Screen name="onboarding" options={{ href: null }} />
       <Tabs.Screen name="delete-account" options={{ href: null }} />
     </Tabs>

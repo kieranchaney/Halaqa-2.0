@@ -1,6 +1,7 @@
 import { decode } from "base64-arraybuffer";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
+import { Platform } from "react-native";
 import { supabase } from "./supabaseClient";
 
 type IdMeta = Record<string, { likeCount: number; hasLiked: boolean }>;
@@ -18,15 +19,22 @@ export async function pickResponseImage(): Promise<string | null> {
 }
 
 export async function uploadResponseImage(localUri: string, userId: string): Promise<string> {
-  const base64 = await FileSystem.readAsStringAsync(localUri, {
-    encoding: FileSystem.EncodingType.Base64
-  });
-  const arrayBuffer = decode(base64);
   const path = `${userId}/${Date.now()}.jpg`;
+  let fileBody: Blob | ArrayBuffer;
+
+  if (Platform.OS === "web") {
+    const response = await fetch(localUri);
+    fileBody = await response.blob();
+  } else {
+    const base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+    fileBody = decode(base64);
+  }
 
   const { error } = await supabase.storage
     .from("response-images")
-    .upload(path, arrayBuffer, { contentType: "image/jpeg" });
+    .upload(path, fileBody, { contentType: "image/jpeg" });
   if (error) throw error;
 
   return path;
@@ -64,7 +72,14 @@ export async function getMyResponse(userId: string, globalPromptId: string) {
 }
 
 export async function submitOrUpdateResponse(userId: string, globalPromptId: string, body: string, localImageUri?: string | null) {
-  const imagePath = localImageUri ? await uploadResponseImage(localImageUri, userId) : null;
+  let imagePath = null;
+  if (localImageUri) {
+    try {
+      imagePath = await uploadResponseImage(localImageUri, userId);
+    } catch (error: any) {
+      throw new Error(`Photo upload failed: ${error?.message || "Please try again."}`);
+    }
+  }
   const { data, error } = await supabase
     .from("prompt_responses")
     .upsert(
